@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
-namespace Service.Infrastructure.Data;
+namespace Lugares.Infrastructure.Data;
 
 public class ApplicationDbContext : DbContext
 {

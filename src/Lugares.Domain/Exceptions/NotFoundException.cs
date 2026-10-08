@@ -1,4 +1,4 @@
-﻿namespace Service.Domain.Exceptions;
+namespace Lugares.Domain.Exceptions;
 
 public class NotFoundException : Exception
 {

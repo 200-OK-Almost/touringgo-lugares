@@ -1,6 +1,6 @@
-using Service.API.Extensions;
-using Service.Application;
-using Service.Infrastructure;
+using Lugares.API.Extensions;
+using Lugares.Application;
+using Lugares.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 

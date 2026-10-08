@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Service.Application;
+namespace Lugares.Application;
 
 public static class DependencyInjection
 {

@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Service.Infrastructure.Data;
+using Lugares.Infrastructure.Data;
 
-namespace Service.Infrastructure;
+namespace Lugares.Infrastructure;
 
 public static class DependencyInjection
 {

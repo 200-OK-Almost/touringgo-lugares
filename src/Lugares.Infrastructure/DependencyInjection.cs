@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Lugares.Application.Interfaces;
 using Lugares.Infrastructure.Data;
+using Lugares.Infrastructure.Repositories;
 
 namespace Lugares.Infrastructure;
 
@@ -16,6 +18,7 @@ public static class DependencyInjection
                 configuration.GetConnectionString("DefaultConnection")));
 
         // Registrar repositorios
+        services.AddScoped<ILugarRepository, LugarRepository>();
 
         return services;
     }

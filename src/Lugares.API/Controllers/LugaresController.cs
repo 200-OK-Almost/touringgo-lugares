@@ -1,5 +1,6 @@
 using Lugares.Application.DTOs;
 using Lugares.Application.Interfaces;
+using Lugares.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lugares.API.Controllers;
@@ -9,10 +10,17 @@ namespace Lugares.API.Controllers;
 public class LugaresController : ControllerBase
 {
     private readonly ILugarService _lugarService;
+    private readonly IGooglePlacesService _googlePlacesService;
+    private readonly IControlCuotaService _controlCuotaService;
 
-    public LugaresController(ILugarService lugarService)
+    public LugaresController(
+        ILugarService lugarService,
+        IGooglePlacesService googlePlacesService,
+        IControlCuotaService controlCuotaService)
     {
         _lugarService = lugarService;
+        _googlePlacesService = googlePlacesService;
+        _controlCuotaService = controlCuotaService;
     }
 
     /// <summary>
@@ -57,5 +65,36 @@ public class LugaresController : ControllerBase
     {
         var categorias = await _lugarService.ObtenerCategoriasAsync(cancellationToken);
         return Ok(categorias);
+    }
+
+    /// <summary>
+    /// Busca lugares en Google Places y los guarda automáticamente en PostgreSQL (caché write-through).
+    /// </summary>
+    [HttpPost("google/buscar")]
+    [ProducesResponseType(typeof(IReadOnlyList<LugarResumenDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<LugarResumenDto>>> BuscarEnGooglePlaces(
+        [FromQuery] string busqueda,
+        [FromQuery] BarrioCaba barrio,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(busqueda))
+        {
+            return BadRequest(new { mensaje = "El parámetro de búsqueda es requerido." });
+        }
+
+        var lugares = await _googlePlacesService.BuscarYCachearAsync(busqueda, barrio, cancellationToken);
+        return Ok(lugares);
+    }
+
+    /// <summary>
+    /// Obtiene el estado actual de la cuota diaria de llamadas a Google Places y Circuit Breaker.
+    /// </summary>
+    [HttpGet("google/cuota")]
+    [ProducesResponseType(typeof(ControlCuotaGoogleDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ControlCuotaGoogleDto>> ObtenerEstadoCuota(
+        CancellationToken cancellationToken)
+    {
+        var cuota = await _controlCuotaService.ObtenerEstadoHoyAsync(cancellationToken);
+        return Ok(cuota);
     }
 }

@@ -27,8 +27,8 @@ public class LugaresController : ControllerBase
     /// Consulta y filtra lugares del catálogo según los criterios especificados.
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<LugarResumenDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<LugarResumenDto>>> Buscar(
+    [ProducesResponseType(typeof(ResultadoPaginadoDto<LugarResumenDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ResultadoPaginadoDto<LugarResumenDto>>> Buscar(
         [FromQuery] LugarFiltroDto filtro,
         CancellationToken cancellationToken)
     {

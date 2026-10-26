@@ -4,7 +4,7 @@ namespace Lugares.Application.Interfaces;
 
 public interface ILugarService
 {
-    Task<IReadOnlyList<LugarResumenDto>> BuscarLugaresAsync(LugarFiltroDto filtro, CancellationToken cancellationToken = default);
+    Task<ResultadoPaginadoDto<LugarResumenDto>> BuscarLugaresAsync(LugarFiltroDto filtro, CancellationToken cancellationToken = default);
     Task<LugarDetalleDto?> ObtenerDetalleLugarAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CategoriaDto>> ObtenerCategoriasAsync(CancellationToken cancellationToken = default);
 }

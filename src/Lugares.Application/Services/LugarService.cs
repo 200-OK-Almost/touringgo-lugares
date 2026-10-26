@@ -13,11 +13,11 @@ public class LugarService : ILugarService
         _lugarRepository = lugarRepository;
     }
 
-    public async Task<IReadOnlyList<LugarResumenDto>> BuscarLugaresAsync(
+    public async Task<ResultadoPaginadoDto<LugarResumenDto>> BuscarLugaresAsync(
         LugarFiltroDto filtro,
         CancellationToken cancellationToken = default)
     {
-        var lugares = await _lugarRepository.ObtenerFiltradosAsync(filtro, cancellationToken);
+        var (lugares, total) = await _lugarRepository.ObtenerFiltradosAsync(filtro, cancellationToken);
 
         var resultado = lugares.Select(l =>
         {
@@ -65,7 +65,13 @@ public class LugarService : ILugarService
             resultado = resultado.OrderBy(r => r.DistanciaMetros).ToList();
         }
 
-        return resultado;
+        return new ResultadoPaginadoDto<LugarResumenDto>
+        {
+            Items = resultado,
+            Total = total,
+            Pagina = filtro.Pagina < 1 ? 1 : filtro.Pagina,
+            Tamano = Math.Clamp(filtro.Tamano, 1, 100)
+        };
     }
 
     public async Task<LugarDetalleDto?> ObtenerDetalleLugarAsync(

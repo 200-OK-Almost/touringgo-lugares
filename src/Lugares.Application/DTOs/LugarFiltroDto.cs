@@ -20,4 +20,8 @@ public class LugarFiltroDto
     public decimal? LatitudReferencia { get; set; }
     public decimal? LongitudReferencia { get; set; }
     public double? RadioMetrosMaximo { get; set; }
+
+    // Parámetros de paginación
+    public int Pagina { get; set; } = 1;
+    public int Tamano { get; set; } = 20;
 }

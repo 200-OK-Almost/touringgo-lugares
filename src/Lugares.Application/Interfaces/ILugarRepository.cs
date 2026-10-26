@@ -5,7 +5,7 @@ namespace Lugares.Application.Interfaces;
 
 public interface ILugarRepository
 {
-    Task<IReadOnlyList<Lugar>> ObtenerFiltradosAsync(LugarFiltroDto filtro, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Lugar> Items, int Total)> ObtenerFiltradosAsync(LugarFiltroDto filtro, CancellationToken cancellationToken = default);
     Task<Lugar?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Lugar?> ObtenerPorGooglePlaceIdAsync(string googlePlaceId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CategoriaLugar>> ObtenerCategoriasAsync(CancellationToken cancellationToken = default);

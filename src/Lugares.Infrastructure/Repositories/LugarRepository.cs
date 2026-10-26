@@ -15,7 +15,7 @@ public class LugarRepository : ILugarRepository
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Lugar>> ObtenerFiltradosAsync(
+    public async Task<(IReadOnlyList<Lugar> Items, int Total)> ObtenerFiltradosAsync(
         LugarFiltroDto filtro,
         CancellationToken cancellationToken = default)
     {
@@ -86,7 +86,18 @@ public class LugarRepository : ILugarRepository
                                      (l.Subzona != null && l.Subzona.ToLower().Contains(busqueda)));
         }
 
-        return await query.ToListAsync(cancellationToken);
+        var total = await query.CountAsync(cancellationToken);
+
+        var pagina = filtro.Pagina < 1 ? 1 : filtro.Pagina;
+        var tamano = Math.Clamp(filtro.Tamano, 1, 100);
+
+        var items = await query
+            .OrderBy(l => l.Nombre)
+            .Skip((pagina - 1) * tamano)
+            .Take(tamano)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
     }
 
     public async Task<Lugar?> ObtenerPorIdAsync(

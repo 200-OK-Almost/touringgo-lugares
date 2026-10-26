@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Lugares.API.Extensions;
 using Lugares.Application;
 using Lugares.Infrastructure;
@@ -11,7 +12,11 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

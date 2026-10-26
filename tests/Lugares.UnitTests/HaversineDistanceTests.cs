@@ -35,7 +35,7 @@ public class HaversineDistanceTests
         };
 
         _repoMock.Setup(r => r.ObtenerFiltradosAsync(It.IsAny<LugarFiltroDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Lugar> { colon });
+            .ReturnsAsync((new List<Lugar> { colon }, 1));
 
         var filtro = new LugarFiltroDto
         {
@@ -44,11 +44,12 @@ public class HaversineDistanceTests
         };
 
         var resultado = await _service.BuscarLugaresAsync(filtro);
+        var items = resultado.Items.ToList();
 
-        Assert.Single(resultado);
-        Assert.NotNull(resultado[0].DistanciaMetros);
+        Assert.Single(items);
+        Assert.NotNull(items[0].DistanciaMetros);
         // Debe estar en un rango razonable de 250 a 400 metros
-        Assert.InRange(resultado[0].DistanciaMetros!.Value, 250, 400);
+        Assert.InRange(items[0].DistanciaMetros!.Value, 250, 400);
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public class HaversineDistanceTests
         var plazaFrancia = new Lugar { Id = Guid.NewGuid(), Nombre = "Plaza Francia", Latitud = -34.5855m, Longitud = -58.3912m, Activo = true };
 
         _repoMock.Setup(r => r.ObtenerFiltradosAsync(It.IsAny<LugarFiltroDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Lugar> { rosedal, colon, plazaFrancia });
+            .ReturnsAsync((new List<Lugar> { rosedal, colon, plazaFrancia }, 3));
 
         var filtro = new LugarFiltroDto
         {
@@ -72,13 +73,14 @@ public class HaversineDistanceTests
         };
 
         var resultado = await _service.BuscarLugaresAsync(filtro);
+        var items = resultado.Items.ToList();
 
-        Assert.Equal(3, resultado.Count);
-        Assert.Equal("Teatro Colón", resultado[0].Nombre);
-        Assert.Equal("Plaza Francia", resultado[1].Nombre);
-        Assert.Equal("Rosedal", resultado[2].Nombre);
-        Assert.True(resultado[0].DistanciaMetros < resultado[1].DistanciaMetros);
-        Assert.True(resultado[1].DistanciaMetros < resultado[2].DistanciaMetros);
+        Assert.Equal(3, items.Count);
+        Assert.Equal("Teatro Colón", items[0].Nombre);
+        Assert.Equal("Plaza Francia", items[1].Nombre);
+        Assert.Equal("Rosedal", items[2].Nombre);
+        Assert.True(items[0].DistanciaMetros < items[1].DistanciaMetros);
+        Assert.True(items[1].DistanciaMetros < items[2].DistanciaMetros);
     }
 
     [Fact]
@@ -88,7 +90,7 @@ public class HaversineDistanceTests
         var rosedal = new Lugar { Id = Guid.NewGuid(), Nombre = "Rosedal", Latitud = -34.5714m, Longitud = -58.4172m, Activo = true }; // ~4.8km
 
         _repoMock.Setup(r => r.ObtenerFiltradosAsync(It.IsAny<LugarFiltroDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Lugar> { colon, rosedal });
+            .ReturnsAsync((new List<Lugar> { colon, rosedal }, 2));
 
         var filtro = new LugarFiltroDto
         {
@@ -98,8 +100,27 @@ public class HaversineDistanceTests
         };
 
         var resultado = await _service.BuscarLugaresAsync(filtro);
+        var items = resultado.Items.ToList();
 
-        Assert.Single(resultado);
-        Assert.Equal("Teatro Colón", resultado[0].Nombre);
+        Assert.Single(items);
+        Assert.Equal("Teatro Colón", items[0].Nombre);
+    }
+
+    [Fact]
+    public async Task BuscarLugaresAsync_PropagaMetadatosDePaginacion()
+    {
+        var colon = new Lugar { Id = Guid.NewGuid(), Nombre = "Teatro Colón", Latitud = -34.6011m, Longitud = -58.3831m, Activo = true };
+
+        _repoMock.Setup(r => r.ObtenerFiltradosAsync(It.IsAny<LugarFiltroDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<Lugar> { colon }, 35));
+
+        var filtro = new LugarFiltroDto { Pagina = 2, Tamano = 20 };
+
+        var resultado = await _service.BuscarLugaresAsync(filtro);
+
+        Assert.Equal(35, resultado.Total);
+        Assert.Equal(2, resultado.Pagina);
+        Assert.Equal(20, resultado.Tamano);
+        Assert.Single(resultado.Items);
     }
 }

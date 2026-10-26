@@ -65,10 +65,11 @@ public class LugarFiltroTests
         var repo = new LugarRepository(context);
 
         var filtro = new LugarFiltroDto { SoloBajoTecho = true };
-        var resultado = await repo.ObtenerFiltradosAsync(filtro);
+        var (items, total) = await repo.ObtenerFiltradosAsync(filtro);
 
-        Assert.Equal(2, resultado.Count);
-        Assert.All(resultado, l => Assert.True(l.EsBajoTecho));
+        Assert.Equal(2, total);
+        Assert.Equal(2, items.Count);
+        Assert.All(items, l => Assert.True(l.EsBajoTecho));
     }
 
     [Fact]
@@ -78,10 +79,11 @@ public class LugarFiltroTests
         var repo = new LugarRepository(context);
 
         var filtro = new LugarFiltroDto { Barrio = BarrioCaba.SanTelmo };
-        var resultado = await repo.ObtenerFiltradosAsync(filtro);
+        var (items, total) = await repo.ObtenerFiltradosAsync(filtro);
 
-        Assert.Single(resultado);
-        Assert.Equal("Bar Nocturno San Telmo", resultado[0].Nombre);
+        Assert.Equal(1, total);
+        Assert.Single(items);
+        Assert.Equal("Bar Nocturno San Telmo", items[0].Nombre);
     }
 
     [Fact]
@@ -91,9 +93,35 @@ public class LugarFiltroTests
         var repo = new LugarRepository(context);
 
         var filtro = new LugarFiltroDto { AptoNinos = true };
-        var resultado = await repo.ObtenerFiltradosAsync(filtro);
+        var (items, total) = await repo.ObtenerFiltradosAsync(filtro);
 
-        Assert.Equal(2, resultado.Count);
-        Assert.All(resultado, l => Assert.True(l.AptoNinos));
+        Assert.Equal(2, total);
+        Assert.Equal(2, items.Count);
+        Assert.All(items, l => Assert.True(l.AptoNinos));
+    }
+
+    [Fact]
+    public async Task ObtenerFiltradosAsync_ConPaginacion_RetornaPaginaYTotalCorrectos()
+    {
+        using var context = CreateInMemoryDbContext();
+        var repo = new LugarRepository(context);
+
+        var filtro = new LugarFiltroDto { Pagina = 1, Tamano = 2 };
+        var (items, total) = await repo.ObtenerFiltradosAsync(filtro);
+
+        Assert.Equal(3, total);
+        Assert.Equal(2, items.Count);
+
+        var filtroPagina2 = new LugarFiltroDto { Pagina = 2, Tamano = 2 };
+        var (items2, total2) = await repo.ObtenerFiltradosAsync(filtroPagina2);
+
+        Assert.Equal(3, total2);
+        Assert.Single(items2);
+
+        var filtroPaginaFuera = new LugarFiltroDto { Pagina = 3, Tamano = 2 };
+        var (items3, total3) = await repo.ObtenerFiltradosAsync(filtroPaginaFuera);
+
+        Assert.Equal(3, total3);
+        Assert.Empty(items3);
     }
 }

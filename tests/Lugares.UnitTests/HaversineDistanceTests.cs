@@ -123,4 +123,44 @@ public class HaversineDistanceTests
         Assert.Equal(20, resultado.Tamano);
         Assert.Single(resultado.Items);
     }
+
+    [Fact]
+    public async Task BuscarLugaresAsync_ConCoordenadasYRadio_PaginaSobreResultadoFiltradoYOrdenado()
+    {
+        // Referencia: Obelisco. Distancias aproximadas: Colón ~320m, Plaza Francia ~2.2km, Rosedal ~4.8km.
+        var colon = new Lugar { Id = Guid.NewGuid(), Nombre = "Teatro Colón", Latitud = -34.6011m, Longitud = -58.3831m, Activo = true };
+        var plazaFrancia = new Lugar { Id = Guid.NewGuid(), Nombre = "Plaza Francia", Latitud = -34.5855m, Longitud = -58.3912m, Activo = true };
+        var rosedal = new Lugar { Id = Guid.NewGuid(), Nombre = "Rosedal", Latitud = -34.5714m, Longitud = -58.4172m, Activo = true };
+
+        // Con cercanía, el repositorio entrega el conjunto completo (sin paginar).
+        _repoMock.Setup(r => r.ObtenerFiltradosAsync(It.IsAny<LugarFiltroDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<Lugar> { rosedal, colon, plazaFrancia }, 3));
+
+        var filtro = new LugarFiltroDto
+        {
+            LatitudReferencia = -34.6037m,
+            LongitudReferencia = -58.3816m,
+            RadioMetrosMaximo = 3000, // excluye el Rosedal (~4.8km)
+            Pagina = 1,
+            Tamano = 1
+        };
+
+        var primeraPagina = await _service.BuscarLugaresAsync(filtro);
+        var itemsPrimera = primeraPagina.Items.ToList();
+
+        // El total debe reflejar el filtro por radio (2, no 3) y la página el orden por cercanía.
+        Assert.Equal(2, primeraPagina.Total);
+        Assert.Equal(1, primeraPagina.Pagina);
+        Assert.Equal(1, primeraPagina.Tamano);
+        Assert.Single(itemsPrimera);
+        Assert.Equal("Teatro Colón", itemsPrimera[0].Nombre);
+
+        filtro.Pagina = 2;
+        var segundaPagina = await _service.BuscarLugaresAsync(filtro);
+        var itemsSegunda = segundaPagina.Items.ToList();
+
+        Assert.Equal(2, segundaPagina.Total);
+        Assert.Single(itemsSegunda);
+        Assert.Equal("Plaza Francia", itemsSegunda[0].Nombre);
+    }
 }

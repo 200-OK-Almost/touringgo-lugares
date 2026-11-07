@@ -5,6 +5,7 @@ using Lugares.Application;
 using Lugares.Infrastructure;
 using Lugares.Infrastructure.Data;
 using Lugares.Infrastructure.Data.Seeding;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,17 +39,18 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.MapControllers();
 
-// Ejecutar seed inicial si la base de datos está disponible
+// Aplicar migraciones y ejecutar seed inicial si la base de datos está disponible
 try
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
     await DataSeeder.SeedAsync(dbContext);
 }
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogWarning(ex, "No se pudo ejecutar el seed inicial (¿base de datos aún no iniciada?).");
+    logger.LogWarning(ex, "No se pudo preparar la base de datos al arrancar (¿Postgres aún no iniciado?).");
 }
 
 app.Run();

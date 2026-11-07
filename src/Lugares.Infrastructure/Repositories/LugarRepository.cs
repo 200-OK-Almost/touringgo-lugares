@@ -91,11 +91,18 @@ public class LugarRepository : ILugarRepository
         var pagina = filtro.Pagina < 1 ? 1 : filtro.Pagina;
         var tamano = Math.Clamp(filtro.Tamano, 1, 100);
 
-        var items = await query
-            .OrderBy(l => l.Nombre)
-            .Skip((pagina - 1) * tamano)
-            .Take(tamano)
-            .ToListAsync(cancellationToken);
+        // Con coordenadas de referencia, la distancia se calcula en la capa de aplicación
+        // sobre el conjunto completo (no paginado) para poder filtrar por radio y ordenar
+        // por cercanía de forma correcta antes de paginar.
+        var usaCercania = filtro.LatitudReferencia.HasValue && filtro.LongitudReferencia.HasValue;
+
+        var items = usaCercania
+            ? await query.OrderBy(l => l.Nombre).ToListAsync(cancellationToken)
+            : await query
+                .OrderBy(l => l.Nombre)
+                .Skip((pagina - 1) * tamano)
+                .Take(tamano)
+                .ToListAsync(cancellationToken);
 
         return (items, total);
     }

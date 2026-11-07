@@ -17,7 +17,7 @@ public class LugarService : ILugarService
         LugarFiltroDto filtro,
         CancellationToken cancellationToken = default)
     {
-        var (lugares, total) = await _lugarRepository.ObtenerFiltradosAsync(filtro, cancellationToken);
+        var (lugares, totalDb) = await _lugarRepository.ObtenerFiltradosAsync(filtro, cancellationToken);
 
         var resultado = lugares.Select(l =>
         {
@@ -55,7 +55,12 @@ public class LugarService : ILugarService
             };
         }).ToList();
 
-        if (filtro.LatitudReferencia.HasValue && filtro.LongitudReferencia.HasValue)
+        var usaCercania = filtro.LatitudReferencia.HasValue && filtro.LongitudReferencia.HasValue;
+
+        // Con coordenadas de referencia, el filtro por radio y el orden por distancia se
+        // aplican sobre el conjunto completo (ya no paginado por el repositorio), y la
+        // paginación se hace aquí para que el total refleje el filtro por distancia.
+        if (usaCercania)
         {
             if (filtro.RadioMetrosMaximo.HasValue)
             {
@@ -65,12 +70,23 @@ public class LugarService : ILugarService
             resultado = resultado.OrderBy(r => r.DistanciaMetros).ToList();
         }
 
+        var pagina = filtro.Pagina < 1 ? 1 : filtro.Pagina;
+        var tamano = Math.Clamp(filtro.Tamano, 1, 100);
+
+        var total = usaCercania ? resultado.Count : totalDb;
+
+        // Si no hay cercanía, el repositorio ya devolvió la página; paginar de nuevo
+        // dejaría la lista vacía. Solo se pagina en memoria cuando se filtró por distancia.
+        var items = usaCercania
+            ? resultado.Skip((pagina - 1) * tamano).Take(tamano).ToList()
+            : resultado;
+
         return new ResultadoPaginadoDto<LugarResumenDto>
         {
-            Items = resultado,
+            Items = items,
             Total = total,
-            Pagina = filtro.Pagina < 1 ? 1 : filtro.Pagina,
-            Tamano = Math.Clamp(filtro.Tamano, 1, 100)
+            Pagina = pagina,
+            Tamano = tamano
         };
     }
 

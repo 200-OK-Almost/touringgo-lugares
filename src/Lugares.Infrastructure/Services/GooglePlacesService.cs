@@ -176,7 +176,7 @@ public class GooglePlacesService : IGooglePlacesService
             AptoNinos = l.AptoNinos,
             AccesibleMovilidadReducida = l.AccesibleMovilidadReducida,
             FotoPortadaUrl = l.Fotos.FirstOrDefault(f => f.EsPortada)?.Url ?? l.Fotos.FirstOrDefault()?.Url,
-            Categorias = l.Categorias.Select(c => c.Categoria.Nombre).ToList()
+            Categorias = l.Categorias.Select(c => c.Categoria.Codigo).ToList()
         };
     }
 

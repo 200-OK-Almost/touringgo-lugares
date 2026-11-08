@@ -6,7 +6,7 @@ public class LugarFiltroDto
 {
     public BarrioCaba? Barrio { get; set; }
     public TipoLugar? TipoLugar { get; set; }
-    public string? CategoriaCodigo { get; set; }
+    public IReadOnlyCollection<string>? CategoriaCodigo { get; set; }
     public bool? SoloBajoTecho { get; set; }
     public bool? SoloAlAireLibre { get; set; }
     public bool? AptoNinos { get; set; }

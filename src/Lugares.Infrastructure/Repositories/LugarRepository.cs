@@ -38,9 +38,16 @@ public class LugarRepository : ILugarRepository
             query = query.Where(l => l.TipoLugar == filtro.TipoLugar.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(filtro.CategoriaCodigo))
+        if (filtro.CategoriaCodigo is { Count: > 0 })
         {
-            query = query.Where(l => l.Categorias.Any(c => c.Categoria.Codigo == filtro.CategoriaCodigo));
+            var codigos = filtro.CategoriaCodigo
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .ToList();
+
+            if (codigos.Count > 0)
+            {
+                query = query.Where(l => l.Categorias.Any(c => codigos.Contains(c.Categoria.Codigo)));
+            }
         }
 
         if (filtro.SoloBajoTecho == true)

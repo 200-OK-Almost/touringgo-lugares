@@ -1,4 +1,8 @@
 using Lugares.Domain.Enums;
+using NetTopologySuite.Geometries;
+using System.Numerics;
+using Pgvector;
+using Pgvector.EntityFrameworkCore;
 
 namespace Lugares.Domain.Entities;
 
@@ -15,7 +19,9 @@ public class Lugar
     public string Direccion { get; set; } = string.Empty;
     public decimal Latitud { get; set; }
     public decimal Longitud { get; set; }
-    public string? Descripcion { get; set; }
+    // ubicación de postgis
+    public Point Ubicacion { get; set; } = Point.Empty;
+    public string? Descripcion { get; set; } 
     public short DuracionEstimadaMinutos { get; set; } = 60;
     public short NivelPrecio { get; set; } = 1; // 1: $, 2: $$, 3: $$$
     public decimal? Puntuacion { get; set; } // 1.0 a 5.0
@@ -33,6 +39,9 @@ public class Lugar
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public DateTime FechaActualizacion { get; set; } = DateTime.UtcNow;
+
+    // pgvector
+    public Pgvector.Vector? Embedding { get; set; }
 
     // Navegación
     public ICollection<LugarCategoria> Categorias { get; set; } = new List<LugarCategoria>();

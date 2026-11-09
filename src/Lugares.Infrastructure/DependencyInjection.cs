@@ -16,7 +16,14 @@ public static class DependencyInjection
     {
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("DefaultConnection")));
+                configuration.GetConnectionString("DefaultConnection"),
+                npgsqlOptions =>
+                {
+                    npgsqlOptions.UseNetTopologySuite();
+                    npgsqlOptions.UseVector();
+                }
+            )
+        );
 
         // Registrar repositorios
         services.AddScoped<ILugarRepository, LugarRepository>();

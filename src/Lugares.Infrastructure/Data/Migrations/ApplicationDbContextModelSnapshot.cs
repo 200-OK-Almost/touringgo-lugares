@@ -4,7 +4,9 @@ using Lugares.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
 
@@ -20,6 +22,8 @@ namespace Lugares.Infrastructure.Data.Migrations
                 .HasAnnotation("ProductVersion", "8.0.33")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Lugares.Domain.Entities.CategoriaLugar", b =>
@@ -176,6 +180,9 @@ namespace Lugares.Infrastructure.Data.Migrations
                         .HasDefaultValue((short)60)
                         .HasColumnName("duracion_estimada_minutos");
 
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector(384)");
+
                     b.Property<bool>("EsAlAireLibre")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -263,11 +270,24 @@ namespace Lugares.Infrastructure.Data.Migrations
                         .HasDefaultValue("punto_interes")
                         .HasColumnName("tipo_lugar");
 
+                    b.Property<Point>("Ubicacion")
+                        .IsRequired()
+                        .HasColumnType("geography (point, 4326)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Embedding");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
 
                     b.HasIndex("IdGooglePlace")
                         .IsUnique()
                         .HasFilter("id_google_place IS NOT NULL");
+
+                    b.HasIndex("Ubicacion");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Ubicacion"), "gist");
 
                     b.HasIndex("Barrio", "Latitud", "Longitud")
                         .HasDatabaseName("idx_lugares_geo");

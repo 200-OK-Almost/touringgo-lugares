@@ -147,5 +147,22 @@ public class LugarConfiguration : IEntityTypeConfiguration<Lugar>
 
         builder.HasIndex(l => new { l.Barrio, l.TipoLugar, l.EsBajoTecho })
             .HasDatabaseName("idx_lugares_filtro_catalogo");
+
+        // postgis
+        builder.Property(x => x.Ubicacion)
+            .HasColumnType("geography (point, 4326)");
+
+        builder.HasIndex(x => x.Ubicacion)
+            .HasMethod("gist");
+
+        // pgvector (ambas configuraciones deben cambiar si se cambia el modelo de embeddings)
+        // modelo actual: multilingual-e5-small (384 dimensiones)
+        builder.Property(x => x.Embedding)
+            .HasColumnType("vector(384)"); // las dimensiones dependen del modelo
+
+        // indice de distancia del coseno
+        builder.HasIndex(x => x.Embedding) // la forma de declarar indice podría variar según el modelo
+            .HasMethod("hnsw")
+            .HasOperators("vector_cosine_ops");
     }
 }

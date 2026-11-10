@@ -1,3 +1,4 @@
+using Lugares.Application.Embeddings;
 using Lugares.Application.Interfaces;
 using Lugares.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +12,8 @@ public static class DependencyInjection
     {
         services.AddScoped<ILugarService, LugarService>();
 
+        // text builder de embedding
+        services.AddSingleton<ILugarEmbeddingTextBuilder, E5LugarEmbeddingTextBuilder>();
         return services;
     }
 }

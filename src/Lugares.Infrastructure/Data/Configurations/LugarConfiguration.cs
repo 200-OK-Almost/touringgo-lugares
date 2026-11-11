@@ -156,9 +156,9 @@ public class LugarConfiguration : IEntityTypeConfiguration<Lugar>
             .HasMethod("gist");
 
         // pgvector (ambas configuraciones deben cambiar si se cambia el modelo de embeddings)
-        // modelo actual: multilingual-e5-small (384 dimensiones)
+        // modelo actual: BAAI/bge-m3 (1024 dimensiones)
         builder.Property(x => x.Embedding)
-            .HasColumnType("vector(384)"); // las dimensiones dependen del modelo
+            .HasColumnType("vector(1024)"); // las dimensiones dependen del modelo
 
         // indice de distancia del coseno
         builder.HasIndex(x => x.Embedding) // la forma de declarar indice podría variar según el modelo

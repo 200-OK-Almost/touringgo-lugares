@@ -16,7 +16,7 @@ public class ControlCuotaServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        return new ApplicationDbContext(options);
+        return new InMemoryApplicationDbContext(options);
     }
 
     [Fact]

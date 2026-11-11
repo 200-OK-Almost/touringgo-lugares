@@ -16,7 +16,7 @@ public class LugarFiltroTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        var context = new ApplicationDbContext(options);
+        var context = new InMemoryApplicationDbContext(options);
 
         context.Lugares.AddRange(
             new Lugar

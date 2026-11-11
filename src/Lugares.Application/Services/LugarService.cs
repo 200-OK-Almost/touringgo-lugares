@@ -1,16 +1,19 @@
 using Lugares.Application.DTOs;
 using Lugares.Application.Interfaces;
 using Lugares.Domain.Entities;
+using System.Threading;
 
 namespace Lugares.Application.Services;
 
 public class LugarService : ILugarService
 {
     private readonly ILugarRepository _lugarRepository;
+    private readonly IEmbeddingClient _embeddingClient;
 
-    public LugarService(ILugarRepository lugarRepository)
+    public LugarService(ILugarRepository lugarRepository, IEmbeddingClient embeddingClient)
     {
         _lugarRepository = lugarRepository;
+        _embeddingClient = embeddingClient;
     }
 
     public async Task<ResultadoPaginadoDto<LugarResumenDto>> BuscarLugaresAsync(
@@ -154,6 +157,18 @@ public class LugarService : ILugarService
             Codigo = c.Codigo,
             Nombre = c.Nombre
         }).ToList();
+    }
+    public async Task<IEnumerable<LugarResultadoSemanticoDto>> BusquedaSemanticaAsync(
+        LugarBusquedaSemanticaDto busqueda, CancellationToken cancellationToken = default)
+    {
+        var embeddings = await _embeddingClient.GenerateQueryEmbeddingsAsync(
+            new[] { busqueda.Query },
+            cancellationToken);
+
+        var lugaresDto = await _lugarRepository.BusquedaSemanticaAsync(
+            embeddings[0], busqueda.Cantidad, cancellationToken);
+
+        return lugaresDto;
     }
 
     private static double CalcularHaversineMetros(double lat1, double lon1, double lat2, double lon2)

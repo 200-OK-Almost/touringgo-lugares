@@ -14,8 +14,11 @@ namespace Lugares.Application.Embeddings
                 $"Tipo de lugar: {GetNombreTipoLugar(lugar.TipoLugar)}",
                 $"Categorías: {string.Join(", ", lugar.Categorias.Select(c => c.Categoria.Nombre))}",
                 $"Barrio: {lugar.Barrio}",
-                $"Zona: {lugar.Subzona}",
+                $"Subzona: {lugar.Subzona}",
             };
+
+            if (!string.IsNullOrWhiteSpace(lugar.Descripcion))
+                partes.Add($"Descripción: {lugar.Descripcion}");
 
             var caracteristicas = new List<string>();
 

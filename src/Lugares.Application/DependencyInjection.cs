@@ -13,7 +13,7 @@ public static class DependencyInjection
         services.AddScoped<ILugarService, LugarService>();
 
         // text builder de embedding
-        services.AddSingleton<ILugarEmbeddingTextBuilder, E5LugarEmbeddingTextBuilder>();
+        services.AddSingleton<ILugarEmbeddingTextBuilder, BgeM3LugarEmbeddingTextBuilder>();
         return services;
     }
 }

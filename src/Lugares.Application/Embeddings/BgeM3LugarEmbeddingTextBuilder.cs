@@ -1,10 +1,10 @@
-﻿using Lugares.Application.Interfaces;
+using Lugares.Application.Interfaces;
 using Lugares.Domain.Entities;
 using Lugares.Domain.Enums;
 
 namespace Lugares.Application.Embeddings
 {
-    public class E5LugarEmbeddingTextBuilder : ILugarEmbeddingTextBuilder
+    public class BgeM3LugarEmbeddingTextBuilder : ILugarEmbeddingTextBuilder
     {
         public string Build(Lugar lugar)
         {

@@ -14,9 +14,4 @@
     <ProjectReference Include="..\Lugares.Domain\Lugares.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="DTOs\" />
-    <Folder Include="Interfaces\" />
-  </ItemGroup>
-
 </Project>

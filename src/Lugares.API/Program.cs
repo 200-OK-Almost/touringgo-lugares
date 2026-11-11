@@ -1,11 +1,12 @@
-using System.Text.Json.Serialization;
-using System.Text.Json;
 using Lugares.API.Extensions;
 using Lugares.Application;
 using Lugares.Infrastructure;
 using Lugares.Infrastructure.Data;
 using Lugares.Infrastructure.Data.Seeding;
+using Lugares.Infrastructure.Embeddings;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +47,10 @@ try
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
     await DataSeeder.SeedAsync(dbContext);
+
+    // generación de vectores de embedding
+    var embeddingSeeder = scope.ServiceProvider.GetRequiredService<LugarEmbeddingSeeder>();
+    await embeddingSeeder.GenerateMissingEmbeddingsAsync();
 }
 catch (Exception ex)
 {

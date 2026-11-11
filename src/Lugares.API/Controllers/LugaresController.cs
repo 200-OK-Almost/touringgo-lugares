@@ -36,6 +36,14 @@ public class LugaresController : ControllerBase
         return Ok(lugares);
     }
 
+    [HttpPost]
+    public async Task<ActionResult<IEnumerable<LugarResultadoSemanticoDto>>> BusquedaSemantica(
+        LugarBusquedaSemanticaDto dto)
+    {
+        var lugares = await _lugarService.BusquedaSemanticaAsync(dto);
+        return Ok(lugares);
+    }
+
     /// <summary>
     /// Obtiene la ficha de detalle de un lugar por su identificador único.
     /// </summary>

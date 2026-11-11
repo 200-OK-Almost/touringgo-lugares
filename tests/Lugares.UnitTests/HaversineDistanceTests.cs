@@ -11,12 +11,15 @@ namespace Lugares.UnitTests;
 public class HaversineDistanceTests
 {
     private readonly Mock<ILugarRepository> _repoMock;
+    private readonly Mock<IEmbeddingClient> _embeddingClientMock;
     private readonly LugarService _service;
 
     public HaversineDistanceTests()
     {
         _repoMock = new Mock<ILugarRepository>();
-        _service = new LugarService(_repoMock.Object);
+        _embeddingClientMock = new Mock<IEmbeddingClient>();
+
+        _service = new LugarService(_repoMock.Object, _embeddingClientMock.Object);
     }
 
     [Fact]

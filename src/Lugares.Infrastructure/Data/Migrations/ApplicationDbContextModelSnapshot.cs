@@ -19,7 +19,7 @@ namespace Lugares.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.33")
+                .HasAnnotation("ProductVersion", "8.0.34")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
@@ -181,7 +181,7 @@ namespace Lugares.Infrastructure.Data.Migrations
                         .HasColumnName("duracion_estimada_minutos");
 
                     b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(384)");
+                        .HasColumnType("vector(1024)");
 
                     b.Property<bool>("EsAlAireLibre")
                         .ValueGeneratedOnAdd()

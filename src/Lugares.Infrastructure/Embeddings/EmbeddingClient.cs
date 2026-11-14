@@ -5,7 +5,7 @@ namespace Lugares.Infrastructure.Embeddings;
 
 internal sealed class EmbeddingClient : IEmbeddingClient
 {
-    private const int ExpectedDimensions = 384; // varia según modelo
+    private const int ExpectedDimensions = 1024; // varia según modelo (bge-m3)
     private const int MaxBatchSize = 32;
 
     private readonly HttpClient _httpClient;

@@ -30,6 +30,7 @@ Thumbs.db
 # Environment / local configuration
 .env
 .env.*
+!.env.example
 
 # Local HTTPS development certificates
 *.pfx

@@ -8,7 +8,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=lugares_db;Username=postgres;Password=postgres"
-      GooglePlaces__ApiKey: "AIzaSyCWWxjGCbf4aIQOQ3kUeEQu3q6SDxFqFOM"
+      GooglePlaces__ApiKey: "${GOOGLE_PLACES_API_KEY:-}"
       GooglePlaces__LimiteDiario: "100"
     depends_on:
       postgres:

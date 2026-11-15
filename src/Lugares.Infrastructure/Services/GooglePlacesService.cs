@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Lugares.Application.DTOs;
 using Lugares.Application.Interfaces;
@@ -5,6 +6,7 @@ using Lugares.Domain.Entities;
 using Lugares.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NetTopologySuite.Geometries;
 
 namespace Lugares.Infrastructure.Services;
 
@@ -50,21 +52,36 @@ public class GooglePlacesService : IGooglePlacesService
             return Array.Empty<LugarResumenDto>();
         }
 
-        // 2. Realizar petición HTTP a Google Places API (Text Search)
-        var queryCompleta = Uri.EscapeDataString($"{busqueda} {barrio} Buenos Aires");
-        var url = $"https://maps.googleapis.com/maps/api/place/textsearch/json?query={queryCompleta}&key={apiKey}";
+        // 2. Realizar petición HTTP a Google Places API (New Text Search)
+        const string url = "https://places.googleapis.com/v1/places:searchText";
+        var queryCompleta = $"{busqueda} {barrio} Buenos Aires";
+
+        var requestBody = new
+        {
+            textQuery = queryCompleta,
+            languageCode = "es"
+        };
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+        };
+
+        requestMessage.Headers.Add("X-Goog-Api-Key", apiKey);
+        requestMessage.Headers.Add("X-Goog-FieldMask", "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.photos");
 
         try
         {
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+            var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Error al consultar Google Places API: {StatusCode}", response.StatusCode);
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Error al consultar Google Places API (New): {StatusCode} - {Error}", response.StatusCode, errorBody);
                 return Array.Empty<LugarResumenDto>();
             }
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            var placesData = JsonSerializer.Deserialize<GooglePlacesResponse>(content, new JsonSerializerOptions
+            var placesData = JsonSerializer.Deserialize<GooglePlacesNewResponse>(content, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
@@ -72,50 +89,60 @@ public class GooglePlacesService : IGooglePlacesService
             // Registrar llamada consumida en el contador diario
             await _controlCuotaService.RegistrarLlamadaAsync(cancellationToken);
 
-            if (placesData?.Results == null || placesData.Results.Count == 0)
+            if (placesData?.Places == null || placesData.Places.Count == 0)
             {
                 return Array.Empty<LugarResumenDto>();
             }
 
+            // Catálogo oficial de categorías de TouringGO para mapeo automático
+            var categoriasDb = await _lugarRepository.ObtenerCategoriasAsync(cancellationToken);
+
             var lugaresProcesados = new List<LugarResumenDto>();
 
             // 3. Estrategia Write-Through: Cachear / Persistir en PostgreSQL
-            foreach (var item in placesData.Results.Take(10)) // Tomamos los 10 mejores resultados
+            foreach (var item in placesData.Places.Take(10)) // Tomamos los 10 mejores resultados
             {
-                if (string.IsNullOrWhiteSpace(item.PlaceId) || string.IsNullOrWhiteSpace(item.Name) || item.Geometry?.Location == null)
+                var placeId = item.Id;
+                var nombre = item.DisplayName?.Text;
+
+                if (string.IsNullOrWhiteSpace(placeId) || string.IsNullOrWhiteSpace(nombre) || item.Location == null)
                 {
                     continue;
                 }
 
                 // Verificar si ya existe en la base por id_google_place (evitar duplicados)
-                var existente = await _lugarRepository.ObtenerPorGooglePlaceIdAsync(item.PlaceId, cancellationToken);
+                var existente = await _lugarRepository.ObtenerPorGooglePlaceIdAsync(placeId, cancellationToken);
                 if (existente != null)
                 {
                     existente.FechaUltimaSincronizacion = DateTime.UtcNow;
                     existente.Puntuacion = item.Rating;
-                    existente.CantidadResenas = item.UserRatingsTotal ?? existente.CantidadResenas;
+                    existente.CantidadResenas = item.UserRatingCount ?? existente.CantidadResenas;
                     await _lugarRepository.ActualizarAsync(existente, cancellationToken);
 
                     lugaresProcesados.Add(MapearAResumen(existente));
                     continue;
                 }
 
+                var lat = item.Location.Latitude;
+                var lng = item.Location.Longitude;
+
                 var nuevoLugar = new Lugar
                 {
                     Id = Guid.NewGuid(),
                     Origen = OrigenLugar.GooglePlaces,
-                    IdGooglePlace = item.PlaceId,
+                    IdGooglePlace = placeId,
                     FechaUltimaSincronizacion = DateTime.UtcNow,
                     TipoLugar = TipoLugar.PuntoInteres,
-                    Nombre = item.Name,
+                    Nombre = nombre,
                     Barrio = barrio,
                     Direccion = item.FormattedAddress ?? $"{barrio}, Buenos Aires",
-                    Latitud = item.Geometry.Location.Lat,
-                    Longitud = item.Geometry.Location.Lng,
+                    Latitud = lat,
+                    Longitud = lng,
+                    Ubicacion = new Point((double)lng, (double)lat) { SRID = 4326 },
                     DuracionEstimadaMinutos = 60,
-                    NivelPrecio = (short)Math.Clamp(item.PriceLevel ?? 1, 1, 3),
+                    NivelPrecio = MapearNivelPrecio(item.PriceLevel),
                     Puntuacion = item.Rating,
-                    CantidadResenas = item.UserRatingsTotal ?? 0,
+                    CantidadResenas = item.UserRatingCount ?? 0,
                     EsBajoTecho = true,
                     EsAlAireLibre = false,
                     AptoNinos = true,
@@ -126,20 +153,47 @@ public class GooglePlacesService : IGooglePlacesService
                     FechaActualizacion = DateTime.UtcNow
                 };
 
+                // Mapeo automático de categorías oficiales de TouringGO
+                var codigoCat = DeterminarCodigoCategoria(item.Types, nombre);
+                var categoriaMatch = categoriasDb.FirstOrDefault(c => c.Codigo == codigoCat) ?? categoriasDb.FirstOrDefault();
+                if (categoriaMatch != null)
+                {
+                    nuevoLugar.Categorias.Add(new LugarCategoria
+                    {
+                        LugarId = nuevoLugar.Id,
+                        CategoriaId = categoriaMatch.Id,
+                        Categoria = categoriaMatch,
+                        EsPrincipal = true
+                    });
+                }
+
+                // Fotos optimizadas para web (maxHeightPx=480, maxWidthPx=480 para evitar 4K y sobrecargar ancho de banda)
+                string? photoUrl = null;
                 if (item.Photos != null && item.Photos.Count > 0)
                 {
-                    var photoRef = item.Photos[0].PhotoReference;
-                    if (!string.IsNullOrWhiteSpace(photoRef))
+                    var photoName = item.Photos[0].Name;
+                    if (!string.IsNullOrWhiteSpace(photoName))
                     {
-                        nuevoLugar.Fotos.Add(new FotoLugar
-                        {
-                            Id = Guid.NewGuid(),
-                            LugarId = nuevoLugar.Id,
-                            Url = $"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={photoRef}&key={apiKey}",
-                            Orden = 1,
-                            EsPortada = true
-                        });
+                        photoUrl = $"https://places.googleapis.com/v1/{photoName}/media?maxHeightPx=480&maxWidthPx=480&key={apiKey}";
                     }
+                }
+
+                // Fallback liviano y optimizado (480px) por categoría si Google omite fotos (ej. sin cuenta de facturación vinculada)
+                if (string.IsNullOrWhiteSpace(photoUrl))
+                {
+                    photoUrl = ObtenerFotoFallbackPorCategoria(codigoCat);
+                }
+
+                if (!string.IsNullOrWhiteSpace(photoUrl))
+                {
+                    nuevoLugar.Fotos.Add(new FotoLugar
+                    {
+                        Id = Guid.NewGuid(),
+                        LugarId = nuevoLugar.Id,
+                        Url = photoUrl,
+                        Orden = 1,
+                        EsPortada = true
+                    });
                 }
 
                 await _lugarRepository.AgregarAsync(nuevoLugar, cancellationToken);
@@ -153,6 +207,58 @@ public class GooglePlacesService : IGooglePlacesService
             _logger.LogError(ex, "Excepción inesperada al procesar búsqueda de Google Places.");
             return Array.Empty<LugarResumenDto>();
         }
+    }
+
+    private static short MapearNivelPrecio(string? priceLevel)
+    {
+        return priceLevel switch
+        {
+            "PRICE_LEVEL_INEXPENSIVE" => 1,
+            "PRICE_LEVEL_MODERATE" => 2,
+            "PRICE_LEVEL_EXPENSIVE" => 3,
+            "PRICE_LEVEL_VERY_EXPENSIVE" => 3,
+            _ => 1
+        };
+    }
+
+    private static string DeterminarCodigoCategoria(List<string>? types, string nombre)
+    {
+        var nombreLower = nombre.ToLowerInvariant();
+        var typeSet = new HashSet<string>(types ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+
+        if (typeSet.Contains("cafe") || typeSet.Contains("coffee_shop") || typeSet.Contains("bakery") || nombreLower.Contains("café") || nombreLower.Contains("cafe"))
+            return "cafe_especialidad";
+
+        if (typeSet.Contains("cocktail_bar") || typeSet.Contains("night_club") || nombreLower.Contains("cocktail") || nombreLower.Contains("coctel"))
+            return "cocteleria_autor";
+
+        if (typeSet.Contains("bar") || typeSet.Contains("pub") || typeSet.Contains("wine_bar") || nombreLower.Contains("bar") || nombreLower.Contains("vermú") || nombreLower.Contains("cerveza"))
+            return "bares_vermu";
+
+        if (typeSet.Contains("museum") || typeSet.Contains("art_gallery") || typeSet.Contains("cultural_center") || nombreLower.Contains("museo") || nombreLower.Contains("galería"))
+            return "museos_galerias";
+
+        if (typeSet.Contains("park") || typeSet.Contains("tourist_attraction") || typeSet.Contains("campground") || typeSet.Contains("plaza") || nombreLower.Contains("plaza") || nombreLower.Contains("parque") || nombreLower.Contains("jardín"))
+            return "parques_aire_libre";
+
+        if (typeSet.Contains("book_store") || typeSet.Contains("library") || nombreLower.Contains("librería") || nombreLower.Contains("libros"))
+            return "librerias_diseno";
+
+        return "gastronomia_clasica";
+    }
+
+    private static string ObtenerFotoFallbackPorCategoria(string codigoCategoria)
+    {
+        return codigoCategoria switch
+        {
+            "cafe_especialidad" => "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=480&q=80",
+            "museos_galerias" => "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=480&q=80",
+            "parques_aire_libre" => "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=480&q=80",
+            "librerias_diseno" => "https://images.unsplash.com/photo-1507842229451-7f01be7fe88d?w=480&q=80",
+            "bares_vermu" => "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=480&q=80",
+            "cocteleria_autor" => "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=480&q=80",
+            _ => "https://images.unsplash.com/photo-1544025162-d76694265947?w=480&q=80"
+        };
     }
 
     private static LugarResumenDto MapearAResumen(Lugar l)
@@ -176,41 +282,44 @@ public class GooglePlacesService : IGooglePlacesService
             AptoNinos = l.AptoNinos,
             AccesibleMovilidadReducida = l.AccesibleMovilidadReducida,
             FotoPortadaUrl = l.Fotos.FirstOrDefault(f => f.EsPortada)?.Url ?? l.Fotos.FirstOrDefault()?.Url,
-            Categorias = l.Categorias.Select(c => c.Categoria.Codigo).ToList()
+            Categorias = l.Categorias
+                .Where(c => c.Categoria != null)
+                .Select(c => c.Categoria.Codigo)
+                .ToList()
         };
     }
 
-    private class GooglePlacesResponse
+    private class GooglePlacesNewResponse
     {
-        public string? Status { get; set; }
-        public List<GooglePlaceItem>? Results { get; set; }
+        public List<GooglePlaceItem>? Places { get; set; }
     }
 
     private class GooglePlaceItem
     {
-        public string? PlaceId { get; set; }
-        public string? Name { get; set; }
+        public string? Id { get; set; }
+        public GoogleDisplayName? DisplayName { get; set; }
         public string? FormattedAddress { get; set; }
-        public GoogleGeometry? Geometry { get; set; }
+        public GoogleLocation? Location { get; set; }
         public decimal? Rating { get; set; }
-        public int? UserRatingsTotal { get; set; }
-        public int? PriceLevel { get; set; }
+        public int? UserRatingCount { get; set; }
+        public string? PriceLevel { get; set; }
+        public List<string>? Types { get; set; }
         public List<GooglePhotoItem>? Photos { get; set; }
     }
 
-    private class GoogleGeometry
+    private class GoogleDisplayName
     {
-        public GoogleLocation? Location { get; set; }
+        public string? Text { get; set; }
     }
 
     private class GoogleLocation
     {
-        public decimal Lat { get; set; }
-        public decimal Lng { get; set; }
+        public decimal Latitude { get; set; }
+        public decimal Longitude { get; set; }
     }
 
     private class GooglePhotoItem
     {
-        public string? PhotoReference { get; set; }
+        public string? Name { get; set; }
     }
 }

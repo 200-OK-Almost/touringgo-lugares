@@ -135,6 +135,7 @@ public class LugarRepository : ILugarRepository
     {
         return await _context.Lugares
             .Include(l => l.Categorias)
+                .ThenInclude(lc => lc.Categoria)
             .Include(l => l.Fotos)
             .FirstOrDefaultAsync(l => l.IdGooglePlace == googlePlaceId, cancellationToken);
     }
@@ -143,7 +144,6 @@ public class LugarRepository : ILugarRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.CategoriasLugar
-            .AsNoTracking()
             .OrderBy(c => c.Nombre)
             .ToListAsync(cancellationToken);
     }
@@ -152,6 +152,19 @@ public class LugarRepository : ILugarRepository
         Lugar lugar,
         CancellationToken cancellationToken = default)
     {
+        foreach (var lc in lugar.Categorias)
+        {
+            var trackedCategoria = _context.CategoriasLugar.Local.FirstOrDefault(c => c.Id == lc.CategoriaId);
+            if (trackedCategoria != null)
+            {
+                lc.Categoria = trackedCategoria;
+            }
+            else if (lc.Categoria != null)
+            {
+                _context.Entry(lc.Categoria).State = EntityState.Unchanged;
+            }
+        }
+
         await _context.Lugares.AddAsync(lugar, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
     }
@@ -160,6 +173,19 @@ public class LugarRepository : ILugarRepository
         Lugar lugar,
         CancellationToken cancellationToken = default)
     {
+        foreach (var lc in lugar.Categorias)
+        {
+            var trackedCategoria = _context.CategoriasLugar.Local.FirstOrDefault(c => c.Id == lc.CategoriaId);
+            if (trackedCategoria != null)
+            {
+                lc.Categoria = trackedCategoria;
+            }
+            else if (lc.Categoria != null)
+            {
+                _context.Entry(lc.Categoria).State = EntityState.Unchanged;
+            }
+        }
+
         _context.Lugares.Update(lugar);
         await _context.SaveChangesAsync(cancellationToken);
     }

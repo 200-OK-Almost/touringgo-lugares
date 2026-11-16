@@ -1,6 +1,7 @@
 using Lugares.Application.DTOs;
 using Lugares.Application.Interfaces;
 using Lugares.Domain.Enums;
+using Lugares.Infrastructure.Embeddings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lugares.API.Controllers;
@@ -12,15 +13,18 @@ public class LugaresController : ControllerBase
     private readonly ILugarService _lugarService;
     private readonly IGooglePlacesService _googlePlacesService;
     private readonly IControlCuotaService _controlCuotaService;
+    private readonly LugarEmbeddingSeeder _embeddingSeeder;
 
     public LugaresController(
         ILugarService lugarService,
         IGooglePlacesService googlePlacesService,
-        IControlCuotaService controlCuotaService)
+        IControlCuotaService controlCuotaService,
+        LugarEmbeddingSeeder embeddingSeeder)
     {
         _lugarService = lugarService;
         _googlePlacesService = googlePlacesService;
         _controlCuotaService = controlCuotaService;
+        _embeddingSeeder = embeddingSeeder;
     }
 
     /// <summary>
@@ -104,5 +108,16 @@ public class LugaresController : ControllerBase
     {
         var cuota = await _controlCuotaService.ObtenerEstadoHoyAsync(cancellationToken);
         return Ok(cuota);
+    }
+
+    [HttpPost("generate")]
+    public async Task<IActionResult> Generate(CancellationToken cancellationToken)
+    {
+        await _embeddingSeeder.GenerateMissingEmbeddingsAsync(cancellationToken);
+
+        return Ok(new
+        {
+            message = "Embeddings generados correctamente."
+        });
     }
 }

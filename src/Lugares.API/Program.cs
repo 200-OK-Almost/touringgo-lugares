@@ -58,4 +58,6 @@ catch (Exception ex)
     logger.LogWarning(ex, "No se pudo preparar la base de datos al arrancar (¿Postgres aún no iniciado?).");
 }
 
+
+
 app.Run();

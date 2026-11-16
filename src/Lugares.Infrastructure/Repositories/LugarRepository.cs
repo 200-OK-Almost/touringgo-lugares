@@ -91,6 +91,7 @@ public class LugarRepository : ILugarRepository
         {
             var busqueda = filtro.Busqueda.Trim().ToLower();
             query = query.Where(l => l.Nombre.ToLower().Contains(busqueda) ||
+                                     l.Direccion.ToLower().Contains(busqueda) ||
                                      (l.Descripcion != null && l.Descripcion.ToLower().Contains(busqueda)) ||
                                      (l.Subzona != null && l.Subzona.ToLower().Contains(busqueda)));
         }

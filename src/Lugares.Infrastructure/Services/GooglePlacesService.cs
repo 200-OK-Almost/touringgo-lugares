@@ -190,7 +190,7 @@ public class GooglePlacesService : IGooglePlacesService
                 // Fallback liviano y optimizado (480px) por categoría si Google omite fotos (ej. sin cuenta de facturación vinculada)
                 if (string.IsNullOrWhiteSpace(photoUrl))
                 {
-                    photoUrl = ObtenerFotoFallbackPorCategoria(codigoCat);
+                    photoUrl = ObtenerFotoFallbackPorCategoria(codigoCat, nombre);
                 }
 
                 if (!string.IsNullOrWhiteSpace(photoUrl))
@@ -304,18 +304,107 @@ public class GooglePlacesService : IGooglePlacesService
         return "gastronomia_clasica";
     }
 
-    private static string ObtenerFotoFallbackPorCategoria(string codigoCategoria)
+    private static readonly Dictionary<string, string[]> FotosFallbackPorCategoria = new(StringComparer.OrdinalIgnoreCase)
     {
-        return codigoCategoria switch
+        ["heladeria"] = new[]
         {
-            "cafe_especialidad" => "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=480&q=80",
-            "museos_galerias" => "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=480&q=80",
-            "parques_aire_libre" => "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=480&q=80",
-            "librerias_diseno" => "https://images.unsplash.com/photo-1507842229451-7f01be7fe88d?w=480&q=80",
-            "bares_vermu" => "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=480&q=80",
-            "cocteleria_autor" => "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=480&q=80",
-            _ => "https://images.unsplash.com/photo-1544025162-d76694265947?w=480&q=80"
-        };
+            "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1570197788417-0e82375c9371?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1580915411954-282cb1b0d780?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1560008511-11c63416e52d?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1516559828984-fb3b99548b21?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1576506295286-5cda18df43e7?w=800&auto=format&fit=crop&q=80"
+        },
+        ["pizza"] = new[]
+        {
+            "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1506354666786-959d6d497f1a?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1590947132387-155cc02f3212?w=800&auto=format&fit=crop&q=80"
+        },
+        ["cafe_especialidad"] = new[]
+        {
+            "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1497636577773-f1231844b336?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80"
+        },
+        ["museos_galerias"] = new[]
+        {
+            "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1544531585-9847b68c8c86?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&auto=format&fit=crop&q=80"
+        },
+        ["parques_aire_libre"] = new[]
+        {
+            "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1588714477688-cf28a50e94f7?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1511497584788-87676104235f?w=800&auto=format&fit=crop&q=80"
+        },
+        ["librerias_diseno"] = new[]
+        {
+            "https://images.unsplash.com/photo-1507842229451-7f01be7fe88d?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&auto=format&fit=crop&q=80"
+        },
+        ["bares_vermu"] = new[]
+        {
+            "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1575444758702-4a6b9222336e?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop&q=80"
+        },
+        ["cocteleria_autor"] = new[]
+        {
+            "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1587223075265-491f59247495?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1510626176961-4b57d4fbad03?w=800&auto=format&fit=crop&q=80"
+        },
+        ["gastronomia_clasica"] = new[]
+        {
+            "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&auto=format&fit=crop&q=80"
+        }
+    };
+
+    private static string ObtenerFotoFallbackPorCategoria(string codigoCategoria, string nombre)
+    {
+        var nombreLower = nombre.ToLowerInvariant();
+        string key = codigoCategoria;
+        if (nombreLower.Contains("helad") || nombreLower.Contains("gelato") || nombreLower.Contains("rapanui") || nombreLower.Contains("lucciano"))
+            key = "heladeria";
+        else if (nombreLower.Contains("pizza") || nombreLower.Contains("guerrin") || nombreLower.Contains("banchero"))
+            key = "pizza";
+
+        if (!FotosFallbackPorCategoria.TryGetValue(key, out var pool) || pool.Length == 0)
+        {
+            pool = FotosFallbackPorCategoria["gastronomia_clasica"];
+        }
+
+        var index = Math.Abs(nombre.GetHashCode()) % pool.Length;
+        return pool[index];
     }
 
     private static LugarResumenDto MapearAResumen(Lugar l)

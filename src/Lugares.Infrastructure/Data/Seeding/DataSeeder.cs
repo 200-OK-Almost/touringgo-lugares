@@ -29,7 +29,7 @@ public static class DataSeeder
         }
 
         // 2. Seed de Lugares Curados de CABA (35 lugares distribuidos en los 5 barrios)
-        if (!await context.Lugares.AnyAsync())
+        if (!await context.Lugares.AnyAsync(l => l.Origen == OrigenLugar.CuradoLocal))
         {
             var catCafe = await context.CategoriasLugar.FirstAsync(c => c.Codigo == "cafe_especialidad");
             var catMuseos = await context.CategoriasLugar.FirstAsync(c => c.Codigo == "museos_galerias");

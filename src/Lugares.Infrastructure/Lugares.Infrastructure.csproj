@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <Folder Include="Data\Migrations\" />
+    <EmbeddedResource Include="Data\Migrations\seed_google_places.sql" />
   </ItemGroup>
 
 </Project>

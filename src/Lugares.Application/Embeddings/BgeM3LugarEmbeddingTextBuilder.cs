@@ -12,7 +12,7 @@ namespace Lugares.Application.Embeddings
             {
                 $"Nombre: {lugar.Nombre}",
                 $"Tipo de lugar: {GetNombreTipoLugar(lugar.TipoLugar)}",
-                $"Categorías: {string.Join(", ", lugar.Categorias.Select(c => c.Categoria.Nombre))}",
+                $"Categorías: {string.Join(", ", lugar.Categorias.Select(c => c.Categoria?.Nombre).Where(n => !string.IsNullOrWhiteSpace(n)))}",
                 $"Barrio: {lugar.Barrio}",
                 $"Subzona: {lugar.Subzona}",
             };

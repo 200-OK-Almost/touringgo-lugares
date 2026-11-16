@@ -138,6 +138,7 @@ public class LugarRepository : ILugarRepository
             .Include(l => l.Categorias)
                 .ThenInclude(lc => lc.Categoria)
             .Include(l => l.Fotos)
+            .Include(l => l.OpcionesDietarias)
             .FirstOrDefaultAsync(l => l.IdGooglePlace == googlePlaceId, cancellationToken);
     }
 

@@ -10,6 +10,9 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=lugares_db;Username=postgres;Password=postgres"
       GooglePlaces__ApiKey: "${GOOGLE_PLACES_API_KEY:-}"
       GooglePlaces__LimiteDiario: "100"
+      Embeddings__BaseUrl: "http://host.docker.internal:8084/"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

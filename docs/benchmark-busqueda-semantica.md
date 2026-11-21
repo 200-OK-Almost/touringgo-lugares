@@ -187,3 +187,7 @@ No agregar más perillas de configuración hasta que el benchmark demuestre que 
 - [x] Umbral aplicado después del `ORDER BY` + `LIMIT`.
 - [x] Distribución de similitud registrada.
 - [ ] Repetir el benchmark con un catálogo más grande o consultas reales de usuarios.
+
+## Ver también
+
+- [Embeddings y backfill del asistente RAG](embeddings-y-backfill.md)

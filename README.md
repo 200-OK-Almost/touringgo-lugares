@@ -7,6 +7,7 @@ El template proporciona una estructura inicial con separación por capas, config
 ## Documentación
 
 - [Benchmark de búsqueda semántica para el asistente RAG](docs/benchmark-busqueda-semantica.md)
+- [Embeddings y backfill del asistente RAG](docs/embeddings-y-backfill.md)
 
 ## Tecnologías
 

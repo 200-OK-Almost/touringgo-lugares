@@ -12,5 +12,7 @@ public interface ILugarRepository
     Task AgregarAsync(Lugar lugar, CancellationToken cancellationToken = default);
     Task ActualizarAsync(Lugar lugar, CancellationToken cancellationToken = default);
     Task<bool> ExisteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Lugar>> ObtenerCandidatosEmbeddingAsync(int cantidad, CancellationToken cancellationToken = default);
+    Task GuardarCambiosAsync(CancellationToken cancellationToken = default);
     Task<IEnumerable<LugarResultadoSemanticoDto>> BusquedaSemanticaAsync(float[] queryEmbedding, LugarBusquedaSemanticaDto busqueda, CancellationToken cancellationToken = default);
 }

@@ -200,6 +200,24 @@ public class LugarRepository : ILugarRepository
         return await _context.Lugares.AnyAsync(l => l.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Lugar>> ObtenerCandidatosEmbeddingAsync(
+        int cantidad,
+        CancellationToken cancellationToken = default)
+        => await _context.Lugares
+            .Where(l => l.Embedding == null
+                || l.EmbeddingSourceHash == null
+                || l.EmbeddingUpdatedAt == null
+                || l.FechaActualizacion > l.EmbeddingUpdatedAt)
+            .Include(l => l.Categorias)
+                .ThenInclude(lc => lc.Categoria)
+            .Include(l => l.OpcionesDietarias)
+            .OrderBy(l => l.Id)
+            .Take(cantidad)
+            .ToListAsync(cancellationToken);
+
+    public Task GuardarCambiosAsync(CancellationToken cancellationToken = default)
+        => _context.SaveChangesAsync(cancellationToken);
+
     public async Task<IEnumerable<LugarResultadoSemanticoDto>> BusquedaSemanticaAsync(
         float[] queryEmbedding,
         LugarBusquedaSemanticaDto busqueda,

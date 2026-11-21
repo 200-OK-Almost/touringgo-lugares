@@ -1,8 +1,6 @@
 using Lugares.Application.Configuration;
 using Lugares.Application.Interfaces;
 using Lugares.Domain.Entities;
-using Lugares.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Pgvector;
@@ -11,7 +9,7 @@ namespace Lugares.Infrastructure.Embeddings;
 
 public class LugarEmbeddingBackfillService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly ILugarRepository _lugarRepository;
     private readonly ILugarEmbeddingTextBuilder _textBuilder;
     private readonly ILugarEmbeddingHashBuilder _hashBuilder;
     private readonly IEmbeddingClient _embeddingClient;
@@ -20,7 +18,7 @@ public class LugarEmbeddingBackfillService
     private readonly ILogger<LugarEmbeddingBackfillService> _logger;
 
     public LugarEmbeddingBackfillService(
-        ApplicationDbContext context,
+        ILugarRepository lugarRepository,
         ILugarEmbeddingTextBuilder textBuilder,
         ILugarEmbeddingHashBuilder hashBuilder,
         IEmbeddingClient embeddingClient,
@@ -28,7 +26,7 @@ public class LugarEmbeddingBackfillService
         IOptions<EmbeddingBackfillOptions> options,
         ILogger<LugarEmbeddingBackfillService> logger)
     {
-        _context = context;
+        _lugarRepository = lugarRepository;
         _textBuilder = textBuilder;
         _hashBuilder = hashBuilder;
         _embeddingClient = embeddingClient;
@@ -47,7 +45,9 @@ public class LugarEmbeddingBackfillService
         }
 
         var batchSize = Math.Clamp(_options.BatchSize, 1, 256);
-        var lugares = await ObtenerCandidatosAsync(batchSize, cancellationToken);
+        var lugares = await _lugarRepository.ObtenerCandidatosEmbeddingAsync(
+            batchSize,
+            cancellationToken);
 
         if (lugares.Count == 0)
         {
@@ -92,7 +92,7 @@ public class LugarEmbeddingBackfillService
 
         if (paraEmbedder.Count == 0)
         {
-            await _context.SaveChangesAsync(cancellationToken);
+            await _lugarRepository.GuardarCambiosAsync(cancellationToken);
             return lugares.Count;
         }
 
@@ -111,7 +111,7 @@ public class LugarEmbeddingBackfillService
                 batch[i].EmbeddingUpdatedAt = DateTime.UtcNow;
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _lugarRepository.GuardarCambiosAsync(cancellationToken);
         }
 
         _logger.LogInformation(
@@ -121,21 +121,6 @@ public class LugarEmbeddingBackfillService
 
         return lugares.Count;
     }
-
-    private Task<List<Lugar>> ObtenerCandidatosAsync(
-        int batchSize,
-        CancellationToken cancellationToken)
-        => _context.Lugares
-            .Where(l => l.Embedding == null
-                || l.EmbeddingSourceHash == null
-                || l.EmbeddingUpdatedAt == null
-                || l.FechaActualizacion > l.EmbeddingUpdatedAt)
-            .Include(l => l.Categorias)
-                .ThenInclude(lc => lc.Categoria)
-            .Include(l => l.OpcionesDietarias)
-            .OrderBy(l => l.Id)
-            .Take(batchSize)
-            .ToListAsync(cancellationToken);
 
     private async Task<bool> MuestreoCoincideAsync(
         IReadOnlyCollection<Lugar> lugares,

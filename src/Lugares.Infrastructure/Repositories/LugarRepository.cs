@@ -200,12 +200,20 @@ public class LugarRepository : ILugarRepository
     }
 
     public async Task<IEnumerable<LugarResultadoSemanticoDto>> BusquedaSemanticaAsync(
-        float[] queryEmbedding, int cantidad, CancellationToken cancellationToken = default)
+        float[] queryEmbedding,
+        LugarBusquedaSemanticaDto busqueda,
+        CancellationToken cancellationToken = default)
     {
         var queryVector = new Vector(queryEmbedding);
+        var cantidad = Math.Clamp(busqueda.Cantidad, 1, 100);
 
-        return await _context.Lugares
-            .Where(l => l.Activo && l.Embedding != null)
+        var query = _context.Lugares
+            .AsNoTracking()
+            .Where(l => l.Activo && l.Embedding != null);
+
+        query = LugarSemanticaFiltros.Aplicar(query, busqueda);
+
+        return await query
             .Select(l => new
             {
                 Lugar = l,

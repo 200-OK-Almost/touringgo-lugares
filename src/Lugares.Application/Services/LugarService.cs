@@ -166,7 +166,7 @@ public class LugarService : ILugarService
             cancellationToken);
 
         var lugaresDto = await _lugarRepository.BusquedaSemanticaAsync(
-            embeddings[0], busqueda.Cantidad, cancellationToken);
+            embeddings[0], busqueda, cancellationToken);
 
         return lugaresDto;
     }

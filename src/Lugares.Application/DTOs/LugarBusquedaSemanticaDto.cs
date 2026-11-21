@@ -18,5 +18,6 @@ namespace Lugares.Application.DTOs
         public decimal? LatitudReferencia { get; set; }
         public decimal? LongitudReferencia { get; set; }
         public double? RadioMetrosMaximo { get; set; }
+        public double? SimilitudMinima { get; set; }
     }
 }

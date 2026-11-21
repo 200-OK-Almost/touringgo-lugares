@@ -15,5 +15,8 @@ namespace Lugares.Application.DTOs
         public bool? AccesibleMovilidadReducida { get; set; }
         public RestriccionDietaria? RestriccionDietaria { get; set; }
         public IReadOnlyCollection<Guid>? ExcluirIds { get; set; }
+        public decimal? LatitudReferencia { get; set; }
+        public decimal? LongitudReferencia { get; set; }
+        public double? RadioMetrosMaximo { get; set; }
     }
 }

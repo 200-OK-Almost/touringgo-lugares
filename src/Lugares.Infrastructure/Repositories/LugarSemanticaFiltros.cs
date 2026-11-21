@@ -1,5 +1,6 @@
 using Lugares.Application.DTOs;
 using Lugares.Domain.Entities;
+using NetTopologySuite.Geometries;
 
 namespace Lugares.Infrastructure.Repositories;
 
@@ -62,6 +63,22 @@ public static class LugarSemanticaFiltros
         {
             var ids = busqueda.ExcluirIds.ToList();
             query = query.Where(l => !ids.Contains(l.Id));
+        }
+
+        if (busqueda.LatitudReferencia.HasValue
+            && busqueda.LongitudReferencia.HasValue
+            && busqueda.RadioMetrosMaximo.HasValue
+            && busqueda.RadioMetrosMaximo.Value > 0)
+        {
+            var punto = new Point(
+                (double)busqueda.LongitudReferencia.Value,
+                (double)busqueda.LatitudReferencia.Value)
+            {
+                SRID = 4326
+            };
+
+            query = query.Where(l =>
+                l.Ubicacion.IsWithinDistance(punto, busqueda.RadioMetrosMaximo.Value));
         }
 
         return query;

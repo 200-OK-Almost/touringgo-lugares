@@ -47,6 +47,44 @@ public class LugarSemanticaQuerySqlTests
         Assert.DoesNotContain("WHERE 1.0 -", sql);
     }
 
+    [Fact]
+    public void Construir_ConTodosLosFiltros_TraduceSinErrores()
+    {
+        using var context = CrearContextoNpgsql();
+        var queryVector = new Vector(new float[1024]);
+
+        var sql = LugarSemanticaQuery
+            .Construir(context.Lugares, queryVector, new LugarBusquedaSemanticaDto
+            {
+                Query = "lugar al aire libre",
+                Cantidad = 5,
+                Barrio = Lugares.Domain.Enums.BarrioCaba.Palermo,
+                CategoriaCodigos = new[] { "cafe_especialidad" },
+                NivelPrecioMaximo = 2,
+                SoloAlAireLibre = true,
+                SoloBajoTecho = true,
+                AptoNinos = true,
+                AccesibleMovilidadReducida = true,
+                RestriccionDietaria = Lugares.Domain.Enums.RestriccionDietaria.Celiaco,
+                ExcluirIds = new[] { Guid.NewGuid() },
+                LatitudReferencia = -34.6037m,
+                LongitudReferencia = -58.3816m,
+                RadioMetrosMaximo = 800,
+                SimilitudMinima = 0.5
+            })
+            .ToQueryString()
+            .ToUpperInvariant();
+
+        Assert.Contains("ST_DWITHIN", sql);
+        Assert.Contains("NIVEL_PRECIO", sql);
+        Assert.Contains("ES_AL_AIRE_LIBRE", sql);
+        Assert.Contains("ES_BAJO_TECHO", sql);
+        Assert.Contains("APTO_NINOS", sql);
+        Assert.Contains("ACCESIBLE_MOVILIDAD_REDUCIDA", sql);
+        Assert.Contains("RESTRICCION", sql);
+        Assert.Contains("WHERE 1.0 -", sql);
+    }
+
     private static ApplicationDbContext CrearContextoNpgsql()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

@@ -46,6 +46,9 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(baseUrl);
             });
         services.AddSingleton<ILugarEmbeddingHashBuilder, LugarEmbeddingHashBuilder>();
+        services.AddSingleton<IEmbeddingBackfillLock, PostgresAdvisoryLock>();
+        services.AddScoped<LugarEmbeddingBackfillService>();
+        services.AddHostedService<EmbeddingBackfillHostedService>();
         // seeder de embedding
         services.AddScoped<LugarEmbeddingSeeder>();
         return services;

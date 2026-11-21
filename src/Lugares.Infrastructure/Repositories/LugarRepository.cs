@@ -188,6 +188,7 @@ public class LugarRepository : ILugarRepository
             }
         }
 
+        lugar.FechaActualizacion = DateTime.UtcNow;
         _context.Lugares.Update(lugar);
         await _context.SaveChangesAsync(cancellationToken);
     }

@@ -45,6 +45,7 @@ public static class DependencyInjection
 
                 client.BaseAddress = new Uri(baseUrl);
             });
+        services.AddSingleton<ILugarEmbeddingHashBuilder, LugarEmbeddingHashBuilder>();
         // seeder de embedding
         services.AddScoped<LugarEmbeddingSeeder>();
         return services;

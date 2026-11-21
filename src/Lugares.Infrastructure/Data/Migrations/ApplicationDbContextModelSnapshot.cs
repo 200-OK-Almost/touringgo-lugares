@@ -183,6 +183,15 @@ namespace Lugares.Infrastructure.Data.Migrations
                     b.Property<Vector>("Embedding")
                         .HasColumnType("vector(1024)");
 
+                    b.Property<string>("EmbeddingSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("embedding_source_hash");
+
+                    b.Property<DateTime?>("EmbeddingUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("embedding_updated_at");
+
                     b.Property<bool>("EsAlAireLibre")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")

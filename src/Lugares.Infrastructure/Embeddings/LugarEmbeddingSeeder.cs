@@ -9,14 +9,17 @@ namespace Lugares.Infrastructure.Embeddings
     {
         private readonly ApplicationDbContext _context;
         private readonly ILugarEmbeddingTextBuilder _embeddingTextBuilder;
+        private readonly ILugarEmbeddingHashBuilder _embeddingHashBuilder;
         private readonly IEmbeddingClient _embeddingClient;
         public LugarEmbeddingSeeder(
             ApplicationDbContext context, 
             ILugarEmbeddingTextBuilder embeddingTextBuilder, 
+            ILugarEmbeddingHashBuilder embeddingHashBuilder,
             IEmbeddingClient embeddingClient)
         {
             _context = context;
             _embeddingTextBuilder = embeddingTextBuilder; 
+            _embeddingHashBuilder = embeddingHashBuilder;
             _embeddingClient = embeddingClient;
         }
         public async Task GenerateMissingEmbeddingsAsync(CancellationToken cancellationToken = default)
@@ -42,6 +45,8 @@ namespace Lugares.Infrastructure.Embeddings
                 for (int i = 0; i < batch.Length; i++)
                 {
                     batch[i].Embedding = new Pgvector.Vector(embeddings[i]);
+                    batch[i].EmbeddingSourceHash = _embeddingHashBuilder.Build(batch[i]);
+                    batch[i].EmbeddingUpdatedAt = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync(cancellationToken);

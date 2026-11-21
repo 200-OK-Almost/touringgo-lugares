@@ -4,6 +4,10 @@ Template base para crear microservicios de TouringGO utilizando .NET 8, ASP.NET 
 
 El template proporciona una estructura inicial con separación por capas, configuración de acceso a datos y soporte para ejecución mediante Docker.
 
+## Documentación
+
+- [Benchmark de búsqueda semántica para el asistente RAG](docs/benchmark-busqueda-semantica.md)
+
 ## Tecnologías
 
 * .NET 8

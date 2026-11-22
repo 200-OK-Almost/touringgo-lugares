@@ -71,9 +71,9 @@ Observaciones:
 - El umbral queda en el `WHERE` externo y no impide el `ORDER BY ... LIMIT` interno.
 - La latencia varía bastante entre la primera ejecución y las siguientes por caché de datos y planes.
 
-### Distribución de similitud
+### Distribución de similitud con embedding de lugar
 
-Consulta de Palermo contra lugares de Palermo dentro de 800 m:
+Consulta de Palermo contra lugares de Palermo dentro de 800 m, usando el embedding de un lugar como query:
 
 | Percentil | Similitud |
 |---|---|
@@ -82,11 +82,35 @@ Consulta de Palermo contra lugares de Palermo dentro de 800 m:
 | p90 | 0.636 |
 | máximo | 0.694 |
 
-Conclusión provisional:
+Esta medición sirve para validar el SQL, pero no representa consultas libres: un embedding de lugar se parece demasiado a los documentos del mismo catálogo.
 
-- Un umbral de `0.45` es demasiado bajo para este caso: deja pasar casi todo.
-- Un rango inicial razonable para calibrar sería `0.60–0.65`.
-- No fijar el umbral en producción hasta medir consultas reales de usuarios y no solo un embedding de referencia.
+### Calibración con consultas reales (Fase 4)
+
+Se generaron embeddings de consultas representativas con `POST /embeddings/queries` del servicio `touringgo-embeddings` y se midió la similitud de los top 12 lugares de Palermo (51 lugares).
+
+| Consulta | min | avg | max | ≥ 0.40 | ≥ 0.45 | ≥ 0.50 |
+|---|---:|---:|---:|---:|---:|---:|
+| café de especialidad con buena onda | 0.524 | 0.545 | 0.637 | 12 | 12 | 12 |
+| museo de arte | 0.353 | 0.378 | 0.512 | 1 | 1 | 1 |
+| parque o plaza al aire libre | 0.508 | 0.538 | 0.565 | 12 | 12 | 12 |
+| bar para tomar algo de noche | 0.509 | 0.542 | 0.581 | 12 | 12 | 12 |
+| restaurante para comer | 0.519 | 0.532 | 0.554 | 12 | 12 | 12 |
+| librería de diseño | 0.414 | 0.435 | 0.582 | 12 | 2 | 1 |
+| lugar para ir con niños | 0.497 | 0.502 | 0.514 | 12 | 12 | 7 |
+| opción vegana | 0.417 | 0.427 | 0.460 | 12 | 1 | 0 |
+| plan romántico | 0.302 | 0.314 | 0.356 | 0 | 0 | 0 |
+| algo tranquilo y bajo techo | 0.472 | 0.477 | 0.490 | 12 | 12 | 0 |
+
+Lectura:
+
+- `0.60–0.65` es demasiado alto para consultas libres: descarta casi todos los resultados.
+- `0.50` elimina consultas amplias como “algo tranquilo y bajo techo” y deja sin resultados a “opción vegana”.
+- `0.45` conserva resultados en consultas amplias y filtra ruido en consultas específicas.
+- Cuando quedan menos de `MinResultados`, el asistente activa el fallback al catálogo filtrado.
+
+**Umbral elegido: `0.45`.**
+
+Se aplica después del `ORDER BY` + `LIMIT` y antes de decidir el fallback.
 
 ## Cómo reproducir
 
@@ -186,7 +210,9 @@ No agregar más perillas de configuración hasta que el benchmark demuestre que 
 - [x] Estrategia elegida: scan exacto mientras el catálogo sea chico.
 - [x] Umbral aplicado después del `ORDER BY` + `LIMIT`.
 - [x] Distribución de similitud registrada.
-- [ ] Repetir el benchmark con un catálogo más grande o consultas reales de usuarios.
+- [x] Umbral calibrado con consultas reales: `0.45`.
+- [x] `Asistente:SimilitudMinima=0.45` aplicado en Itinerarios.
+- [ ] Repetir el benchmark con un catálogo más grande o más consultas reales.
 
 ## Ver también
 

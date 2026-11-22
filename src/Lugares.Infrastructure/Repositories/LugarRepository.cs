@@ -91,6 +91,7 @@ public class LugarRepository : ILugarRepository
         {
             var busqueda = filtro.Busqueda.Trim().ToLower();
             query = query.Where(l => l.Nombre.ToLower().Contains(busqueda) ||
+                                     l.Direccion.ToLower().Contains(busqueda) ||
                                      (l.Descripcion != null && l.Descripcion.ToLower().Contains(busqueda)) ||
                                      (l.Subzona != null && l.Subzona.ToLower().Contains(busqueda)));
         }
@@ -137,6 +138,7 @@ public class LugarRepository : ILugarRepository
             .Include(l => l.Categorias)
                 .ThenInclude(lc => lc.Categoria)
             .Include(l => l.Fotos)
+            .Include(l => l.OpcionesDietarias)
             .FirstOrDefaultAsync(l => l.IdGooglePlace == googlePlaceId, cancellationToken);
     }
 
@@ -186,6 +188,7 @@ public class LugarRepository : ILugarRepository
             }
         }
 
+        lugar.FechaActualizacion = DateTime.UtcNow;
         _context.Lugares.Update(lugar);
         await _context.SaveChangesAsync(cancellationToken);
     }
@@ -197,66 +200,33 @@ public class LugarRepository : ILugarRepository
         return await _context.Lugares.AnyAsync(l => l.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Lugar>> ObtenerCandidatosEmbeddingAsync(
+        int cantidad,
+        CancellationToken cancellationToken = default)
+        => await _context.Lugares
+            .Where(l => l.Embedding == null
+                || l.EmbeddingSourceHash == null
+                || l.EmbeddingUpdatedAt == null
+                || l.FechaActualizacion > l.EmbeddingUpdatedAt)
+            .Include(l => l.Categorias)
+                .ThenInclude(lc => lc.Categoria)
+            .Include(l => l.OpcionesDietarias)
+            .OrderBy(l => l.Id)
+            .Take(cantidad)
+            .ToListAsync(cancellationToken);
+
+    public Task GuardarCambiosAsync(CancellationToken cancellationToken = default)
+        => _context.SaveChangesAsync(cancellationToken);
+
     public async Task<IEnumerable<LugarResultadoSemanticoDto>> BusquedaSemanticaAsync(
-        float[] queryEmbedding, int cantidad, CancellationToken cancellationToken = default)
+        float[] queryEmbedding,
+        LugarBusquedaSemanticaDto busqueda,
+        CancellationToken cancellationToken = default)
     {
         var queryVector = new Vector(queryEmbedding);
 
-        return await _context.Lugares
-            .Where(l => l.Activo && l.Embedding != null)
-            .Select(l => new
-            {
-                Lugar = l,
-                Distancia = l.Embedding!.CosineDistance(queryVector)
-            })
-            .OrderBy(x => x.Distancia)
-            .Take(cantidad)
-            .Select(x => new LugarResultadoSemanticoDto
-            {
-                Similitud = 1.0 - x.Distancia,
-                Id = x.Lugar.Id,
-                Origen = x.Lugar.Origen,
-                IdGooglePlace = x.Lugar.IdGooglePlace,
-                TipoLugar = x.Lugar.TipoLugar,
-                Nombre = x.Lugar.Nombre,
-                Barrio = x.Lugar.Barrio,
-                Subzona = x.Lugar.Subzona,
-                Direccion = x.Lugar.Direccion,
-                Latitud = x.Lugar.Latitud,
-                Longitud = x.Lugar.Longitud,
-                Descripcion = x.Lugar.Descripcion,
-                DuracionEstimadaMinutos = x.Lugar.DuracionEstimadaMinutos,
-                NivelPrecio = x.Lugar.NivelPrecio,
-                Puntuacion = x.Lugar.Puntuacion,
-                CantidadResenas = x.Lugar.CantidadResenas,
-                EsBajoTecho = x.Lugar.EsBajoTecho,
-                EsAlAireLibre = x.Lugar.EsAlAireLibre,
-                AptoNinos = x.Lugar.AptoNinos,
-                AccesibleMovilidadReducida = x.Lugar.AccesibleMovilidadReducida,
-                OfreceMenuInfantil = x.Lugar.OfreceMenuInfantil,
-                Categorias = x.Lugar.Categorias.Select(c => new CategoriaDto
-                {
-                    Id = c.Categoria.Id,
-                    Codigo = c.Categoria.Codigo,
-                    Nombre = c.Categoria.Nombre
-                }).ToList(),
-                OpcionesDietarias = x.Lugar.OpcionesDietarias.Select(o => o.Restriccion.ToString().ToLower()).ToList(),
-                Fotos = x.Lugar.Fotos.OrderBy(f => f.Orden).Select(f => new FotoDto
-                {
-                    Id = f.Id,
-                    Url = f.Url,
-                    Orden = f.Orden,
-                    EsPortada = f.EsPortada
-                }).ToList(),
-                Resenas = x.Lugar.Resenas.OrderByDescending(r => r.FechaResena).Select(r => new ResenaDto
-                {
-                    Id = r.Id,
-                    AutorNombre = r.AutorNombre,
-                    Puntuacion = r.Puntuacion,
-                    Comentario = r.Comentario,
-                    FechaResena = r.FechaResena
-                }).ToList()
-            })
+        return await LugarSemanticaQuery
+            .Construir(_context.Lugares, queryVector, busqueda)
             .ToListAsync(cancellationToken);
     }
 }

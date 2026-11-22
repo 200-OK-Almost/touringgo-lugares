@@ -47,10 +47,12 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(normalizedBaseUrl);
                 client.Timeout = TimeSpan.FromSeconds(120);
             });
-
-        // Seeder y worker automático en segundo plano para garantizar embeddings en cada lugar
+        services.AddSingleton<ILugarEmbeddingHashBuilder, LugarEmbeddingHashBuilder>();
+        services.AddSingleton<IEmbeddingBackfillLock, PostgresAdvisoryLock>();
+        services.AddScoped<LugarEmbeddingBackfillService>();
+        services.AddHostedService<EmbeddingBackfillHostedService>();
+        // seeder de embedding
         services.AddScoped<LugarEmbeddingSeeder>();
-        services.AddHostedService<LugarEmbeddingBackgroundService>();
 
         return services;
     }

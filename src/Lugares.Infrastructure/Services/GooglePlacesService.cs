@@ -7,6 +7,7 @@ using Lugares.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
+using Pgvector;
 
 namespace Lugares.Infrastructure.Services;
 
@@ -17,19 +18,28 @@ public class GooglePlacesService : IGooglePlacesService
     private readonly IControlCuotaService _controlCuotaService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<GooglePlacesService> _logger;
+    private readonly ILugarEmbeddingTextBuilder _embeddingTextBuilder;
+    private readonly ILugarEmbeddingHashBuilder _embeddingHashBuilder;
+    private readonly IEmbeddingClient _embeddingClient;
 
     public GooglePlacesService(
         HttpClient httpClient,
         ILugarRepository lugarRepository,
         IControlCuotaService controlCuotaService,
         IConfiguration configuration,
-        ILogger<GooglePlacesService> logger)
+        ILogger<GooglePlacesService> logger,
+        ILugarEmbeddingTextBuilder embeddingTextBuilder,
+        ILugarEmbeddingHashBuilder embeddingHashBuilder,
+        IEmbeddingClient embeddingClient)
     {
         _httpClient = httpClient;
         _lugarRepository = lugarRepository;
         _controlCuotaService = controlCuotaService;
         _configuration = configuration;
         _logger = logger;
+        _embeddingTextBuilder = embeddingTextBuilder;
+        _embeddingHashBuilder = embeddingHashBuilder;
+        _embeddingClient = embeddingClient;
     }
 
     public async Task<IReadOnlyList<LugarResumenDto>> BuscarYCachearAsync(
@@ -100,6 +110,8 @@ public class GooglePlacesService : IGooglePlacesService
             var categoriasDb = await _lugarRepository.ObtenerCategoriasAsync(cancellationToken);
 
             var lugaresProcesados = new List<LugarResumenDto>();
+            var nuevos = new List<Lugar>();
+            var existentesActualizar = new List<Lugar>();
 
             // 3. Estrategia Write-Through: Cachear / Persistir en PostgreSQL
             foreach (var item in placesData.Places.Take(20))
@@ -119,8 +131,8 @@ public class GooglePlacesService : IGooglePlacesService
                     existente.FechaUltimaSincronizacion = DateTime.UtcNow;
                     existente.Puntuacion = item.Rating;
                     existente.CantidadResenas = item.UserRatingCount ?? existente.CantidadResenas;
-                    await _lugarRepository.ActualizarAsync(existente, cancellationToken);
 
+                    existentesActualizar.Add(existente);
                     lugaresProcesados.Add(MapearAResumen(existente));
                     continue;
                 }
@@ -204,8 +216,24 @@ public class GooglePlacesService : IGooglePlacesService
                     });
                 }
 
-                await _lugarRepository.AgregarAsync(nuevoLugar, cancellationToken);
+                nuevos.Add(nuevoLugar);
                 lugaresProcesados.Add(MapearAResumen(nuevoLugar));
+            }
+
+            // 4. Generación síncrona de embeddings para lugares nuevos y existentes sin vector
+            var lugaresAEmbedder = nuevos
+                .Concat(existentesActualizar.Where(l => l.Embedding == null))
+                .ToList();
+            await GenerarEmbeddingsAsync(lugaresAEmbedder, cancellationToken);
+
+            foreach (var existente in existentesActualizar)
+            {
+                await _lugarRepository.ActualizarAsync(existente, cancellationToken);
+            }
+
+            foreach (var nuevo in nuevos)
+            {
+                await _lugarRepository.AgregarAsync(nuevo, cancellationToken);
             }
 
             return lugaresProcesados;
@@ -214,6 +242,40 @@ public class GooglePlacesService : IGooglePlacesService
         {
             _logger.LogError(ex, "Excepción inesperada al procesar búsqueda de Google Places.");
             return Array.Empty<LugarResumenDto>();
+        }
+    }
+
+    private async Task GenerarEmbeddingsAsync(
+        IReadOnlyList<Lugar> lugares,
+        CancellationToken cancellationToken)
+    {
+        if (lugares.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var textos = lugares
+                .Select(_embeddingTextBuilder.Build)
+                .ToList();
+
+            var vectores = await _embeddingClient.GenerateDocumentEmbeddingsAsync(
+                textos,
+                cancellationToken);
+
+            for (int i = 0; i < lugares.Count; i++)
+            {
+                lugares[i].Embedding = new Vector(vectores[i]);
+                lugares[i].EmbeddingSourceHash = _embeddingHashBuilder.Build(lugares[i]);
+                lugares[i].EmbeddingUpdatedAt = DateTime.UtcNow;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "No se pudieron generar embeddings para {Cantidad} lugares; se guardarán sin vector.",
+                lugares.Count);
         }
     }
 

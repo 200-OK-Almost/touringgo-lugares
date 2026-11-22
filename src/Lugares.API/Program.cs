@@ -3,6 +3,7 @@ using Lugares.Application;
 using Lugares.Infrastructure;
 using Lugares.Infrastructure.Data;
 using Lugares.Infrastructure.Data.Seeding;
+using Lugares.Infrastructure.Embeddings;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -39,14 +40,17 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.MapControllers();
 
-// Aplicar migraciones y ejecutar seed inicial si la base de datos está disponible.
-// La generación automática de embeddings corre en segundo plano mediante LugarEmbeddingBackgroundService.
+// Aplicar migraciones y ejecutar seed inicial si la base de datos está disponible
 try
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
     await DataSeeder.SeedAsync(dbContext);
+
+    // generación de vectores de embedding
+    var embeddingSeeder = scope.ServiceProvider.GetRequiredService<LugarEmbeddingSeeder>();
+    await embeddingSeeder.GenerateMissingEmbeddingsAsync();
 }
 catch (Exception ex)
 {

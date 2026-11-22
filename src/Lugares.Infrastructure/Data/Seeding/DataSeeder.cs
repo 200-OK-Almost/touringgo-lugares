@@ -277,7 +277,7 @@ public static class DataSeeder
                     },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1507842229451-7f01be7fe88d?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -325,7 +325,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catMuseos.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1548625361-195feee819f7?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -429,7 +429,7 @@ public static class DataSeeder
                     },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1544531585-9847b68c8c86?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
 
@@ -639,7 +639,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catParques.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1589802829985-817e51171b92?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -691,7 +691,7 @@ public static class DataSeeder
                     },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -769,7 +769,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catParques.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1496868834840-5f4c98840aaa?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -819,7 +819,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catParques.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1589802829985-817e51171b92?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -843,7 +843,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catParques.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -869,7 +869,7 @@ public static class DataSeeder
                     OpcionesDietarias = new List<LugarOpcionDietaria> { new() { Restriccion = RestriccionDietaria.Celiaco } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1558030006-450675393462?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -893,7 +893,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catMuseos.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1554907984-15263bfd63bd?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -917,7 +917,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catCocteleria.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 },
                 new()
@@ -941,7 +941,7 @@ public static class DataSeeder
                     Categorias = new List<LugarCategoria> { new() { CategoriaId = catParques.Id, EsPrincipal = true } },
                     Fotos = new List<FotoLugar>
                     {
-                        new() { Url = "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
+                        new() { Url = "https://images.unsplash.com/photo-1496868834840-5f4c98840aaa?w=800&auto=format&fit=crop&q=80", Orden = 1, EsPortada = true }
                     }
                 }
             };

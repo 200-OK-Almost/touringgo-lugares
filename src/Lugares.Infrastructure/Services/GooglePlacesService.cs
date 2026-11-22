@@ -59,7 +59,8 @@ public class GooglePlacesService : IGooglePlacesService
         var requestBody = new
         {
             textQuery = queryCompleta,
-            languageCode = "es"
+            languageCode = "es",
+            pageSize = 20
         };
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
@@ -68,7 +69,8 @@ public class GooglePlacesService : IGooglePlacesService
         };
 
         requestMessage.Headers.Add("X-Goog-Api-Key", apiKey);
-        requestMessage.Headers.Add("X-Goog-FieldMask", "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.photos");
+        requestMessage.Headers.Add("X-Goog-FieldMask",
+            "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.primaryType,places.primaryTypeDisplayName,places.editorialSummary,places.accessibilityOptions,places.outdoorSeating,places.goodForChildren,places.menuForChildren,places.photos");
 
         try
         {
@@ -100,7 +102,7 @@ public class GooglePlacesService : IGooglePlacesService
             var lugaresProcesados = new List<LugarResumenDto>();
 
             // 3. Estrategia Write-Through: Cachear / Persistir en PostgreSQL
-            foreach (var item in placesData.Places.Take(10)) // Tomamos los 10 mejores resultados
+            foreach (var item in placesData.Places.Take(20))
             {
                 var placeId = item.Id;
                 var nombre = item.DisplayName?.Text;
@@ -125,6 +127,12 @@ public class GooglePlacesService : IGooglePlacesService
 
                 var lat = item.Location.Latitude;
                 var lng = item.Location.Longitude;
+                var codigoCat = DeterminarCodigoCategoria(item.Types, nombre);
+                var tipoLugar = DeterminarTipoLugar(item.Types, item.PrimaryType, nombre);
+                var esParque = codigoCat == "parques_aire_libre";
+                var esAlAireLibre = item.OutdoorSeating ?? esParque;
+                var esBajoTecho = !esParque;
+                var accesible = item.AccessibilityOptions?.WheelchairAccessibleEntrance ?? false;
 
                 var nuevoLugar = new Lugar
                 {
@@ -132,29 +140,29 @@ public class GooglePlacesService : IGooglePlacesService
                     Origen = OrigenLugar.GooglePlaces,
                     IdGooglePlace = placeId,
                     FechaUltimaSincronizacion = DateTime.UtcNow,
-                    TipoLugar = TipoLugar.PuntoInteres,
+                    TipoLugar = tipoLugar,
                     Nombre = nombre,
                     Barrio = barrio,
                     Direccion = item.FormattedAddress ?? $"{barrio}, Buenos Aires",
                     Latitud = lat,
                     Longitud = lng,
                     Ubicacion = new Point((double)lng, (double)lat) { SRID = 4326 },
+                    Descripcion = item.EditorialSummary?.Text ?? item.PrimaryTypeDisplayName?.Text,
                     DuracionEstimadaMinutos = 60,
                     NivelPrecio = MapearNivelPrecio(item.PriceLevel),
                     Puntuacion = item.Rating,
                     CantidadResenas = item.UserRatingCount ?? 0,
-                    EsBajoTecho = true,
-                    EsAlAireLibre = false,
-                    AptoNinos = true,
-                    AccesibleMovilidadReducida = false,
-                    OfreceMenuInfantil = false,
+                    EsBajoTecho = esBajoTecho,
+                    EsAlAireLibre = esAlAireLibre,
+                    AptoNinos = item.GoodForChildren ?? true,
+                    AccesibleMovilidadReducida = accesible,
+                    OfreceMenuInfantil = item.MenuForChildren ?? false,
                     Activo = true,
                     FechaCreacion = DateTime.UtcNow,
                     FechaActualizacion = DateTime.UtcNow
                 };
 
                 // Mapeo automático de categorías oficiales de TouringGO
-                var codigoCat = DeterminarCodigoCategoria(item.Types, nombre);
                 var categoriaMatch = categoriasDb.FirstOrDefault(c => c.Codigo == codigoCat) ?? categoriasDb.FirstOrDefault();
                 if (categoriaMatch != null)
                 {
@@ -178,10 +186,10 @@ public class GooglePlacesService : IGooglePlacesService
                     }
                 }
 
-                // Fallback liviano y optimizado (480px) por categoría si Google omite fotos (ej. sin cuenta de facturación vinculada)
+                // Fallback temático correspondiente por tipo y categoría cuando Google omite fotos
                 if (string.IsNullOrWhiteSpace(photoUrl))
                 {
-                    photoUrl = ObtenerFotoFallbackPorCategoria(codigoCat, nombre);
+                    photoUrl = ObtenerFotoFallbackPorCategoria(codigoCat, nombre, item.Types, tipoLugar);
                 }
 
                 if (!string.IsNullOrWhiteSpace(photoUrl))
@@ -221,27 +229,58 @@ public class GooglePlacesService : IGooglePlacesService
         };
     }
 
+    private static TipoLugar DeterminarTipoLugar(List<string>? types, string? primaryType, string nombre)
+    {
+        var typeSet = new HashSet<string>(types ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(primaryType))
+            typeSet.Add(primaryType);
+
+        if (typeSet.Contains("lodging") || typeSet.Contains("hotel") || typeSet.Contains("hostel") ||
+            typeSet.Contains("guest_house") || typeSet.Contains("extended_stay_hotel") || typeSet.Contains("resort_hotel"))
+        {
+            return TipoLugar.Alojamiento;
+        }
+
+        if (typeSet.Contains("subway_station") || typeSet.Contains("train_station") ||
+            typeSet.Contains("transit_station") || typeSet.Contains("light_rail_station"))
+        {
+            return TipoLugar.NodoUrbano;
+        }
+
+        return TipoLugar.PuntoInteres;
+    }
+
     private static string DeterminarCodigoCategoria(List<string>? types, string nombre)
     {
         var nombreLower = nombre.ToLowerInvariant();
         var typeSet = new HashSet<string>(types ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
-        if (typeSet.Contains("cafe") || typeSet.Contains("coffee_shop") || typeSet.Contains("bakery") || nombreLower.Contains("café") || nombreLower.Contains("cafe"))
+        if (typeSet.Contains("cafe") || typeSet.Contains("coffee_shop") || typeSet.Contains("bakery") ||
+            typeSet.Contains("tea_house") || nombreLower.Contains("café") || nombreLower.Contains("cafe"))
             return "cafe_especialidad";
 
-        if (typeSet.Contains("cocktail_bar") || typeSet.Contains("night_club") || nombreLower.Contains("cocktail") || nombreLower.Contains("coctel"))
+        if (typeSet.Contains("cocktail_bar") || typeSet.Contains("night_club") ||
+            nombreLower.Contains("cocktail") || nombreLower.Contains("coctel") || nombreLower.Contains("speakeasy"))
             return "cocteleria_autor";
 
-        if (typeSet.Contains("bar") || typeSet.Contains("pub") || typeSet.Contains("wine_bar") || nombreLower.Contains("bar") || nombreLower.Contains("vermú") || nombreLower.Contains("cerveza"))
+        if (typeSet.Contains("bar") || typeSet.Contains("pub") || typeSet.Contains("wine_bar") ||
+            typeSet.Contains("brewery") || nombreLower.Contains("bar") || nombreLower.Contains("vermú") ||
+            nombreLower.Contains("vermu") || nombreLower.Contains("cerveza") || nombreLower.Contains("cervecería"))
             return "bares_vermu";
 
-        if (typeSet.Contains("museum") || typeSet.Contains("art_gallery") || typeSet.Contains("cultural_center") || nombreLower.Contains("museo") || nombreLower.Contains("galería"))
+        if (typeSet.Contains("museum") || typeSet.Contains("art_gallery") || typeSet.Contains("cultural_center") ||
+            typeSet.Contains("performing_arts_theater") || nombreLower.Contains("museo") || nombreLower.Contains("galería") ||
+            nombreLower.Contains("teatro"))
             return "museos_galerias";
 
-        if (typeSet.Contains("park") || typeSet.Contains("tourist_attraction") || typeSet.Contains("campground") || typeSet.Contains("plaza") || nombreLower.Contains("plaza") || nombreLower.Contains("parque") || nombreLower.Contains("jardín"))
+        if (typeSet.Contains("park") || typeSet.Contains("tourist_attraction") || typeSet.Contains("campground") ||
+            typeSet.Contains("plaza") || typeSet.Contains("garden") || typeSet.Contains("national_park") ||
+            nombreLower.Contains("plaza") || nombreLower.Contains("parque") || nombreLower.Contains("jardín") ||
+            nombreLower.Contains("reserva"))
             return "parques_aire_libre";
 
-        if (typeSet.Contains("book_store") || typeSet.Contains("library") || nombreLower.Contains("librería") || nombreLower.Contains("libros"))
+        if (typeSet.Contains("book_store") || typeSet.Contains("library") ||
+            nombreLower.Contains("librería") || nombreLower.Contains("libreria") || nombreLower.Contains("libros"))
             return "librerias_diseno";
 
         return "gastronomia_clasica";
@@ -267,6 +306,42 @@ public class GooglePlacesService : IGooglePlacesService
             "https://images.unsplash.com/photo-1506354666786-959d6d497f1a?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1590947132387-155cc02f3212?w=800&auto=format&fit=crop&q=80"
+        },
+        ["parrilla"] = new[]
+        {
+            "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1558030006-450675393462?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=800&auto=format&fit=crop&q=80"
+        },
+        ["pastas"] = new[]
+        {
+            "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=800&auto=format&fit=crop&q=80"
+        },
+        ["hamburguesa"] = new[]
+        {
+            "https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=800&auto=format&fit=crop&q=80"
+        },
+        ["sushi"] = new[]
+        {
+            "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1553621042-f6e147245754?w=800&auto=format&fit=crop&q=80"
+        },
+        ["panaderia"] = new[]
+        {
+            "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop&q=80"
+        },
+        ["hotel"] = new[]
+        {
+            "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&auto=format&fit=crop&q=80"
         },
         ["cafe_especialidad"] = new[]
         {
@@ -294,12 +369,10 @@ public class GooglePlacesService : IGooglePlacesService
             "https://images.unsplash.com/photo-1588714477688-cf28a50e94f7?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=800&auto=format&fit=crop&q=80",
-            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80",
-            "https://images.unsplash.com/photo-1511497584788-87676104235f?w=800&auto=format&fit=crop&q=80"
+            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80"
         },
         ["librerias_diseno"] = new[]
         {
-            "https://images.unsplash.com/photo-1507842229451-7f01be7fe88d?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop&q=80",
@@ -317,7 +390,6 @@ public class GooglePlacesService : IGooglePlacesService
         {
             "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop&q=80",
-            "https://images.unsplash.com/photo-1587223075265-491f59247495?w=800&auto=format&fit=crop&q=80",
             "https://images.unsplash.com/photo-1510626176961-4b57d4fbad03?w=800&auto=format&fit=crop&q=80"
         },
         ["gastronomia_clasica"] = new[]
@@ -332,14 +404,32 @@ public class GooglePlacesService : IGooglePlacesService
         }
     };
 
-    private static string ObtenerFotoFallbackPorCategoria(string codigoCategoria, string nombre)
+    private static string ObtenerFotoFallbackPorCategoria(
+        string codigoCategoria,
+        string nombre,
+        List<string>? types = null,
+        TipoLugar tipoLugar = TipoLugar.PuntoInteres)
     {
         var nombreLower = nombre.ToLowerInvariant();
+        var typeSet = new HashSet<string>(types ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+
         string key = codigoCategoria;
-        if (nombreLower.Contains("helad") || nombreLower.Contains("gelato") || nombreLower.Contains("rapanui") || nombreLower.Contains("lucciano"))
+        if (tipoLugar == TipoLugar.Alojamiento || typeSet.Contains("lodging") || typeSet.Contains("hotel") || nombreLower.Contains("hotel") || nombreLower.Contains("hostel"))
+            key = "hotel";
+        else if (typeSet.Contains("ice_cream_shop") || nombreLower.Contains("helad") || nombreLower.Contains("gelato") || nombreLower.Contains("rapanui") || nombreLower.Contains("lucciano") || nombreLower.Contains("freddo") || nombreLower.Contains("cadore"))
             key = "heladeria";
-        else if (nombreLower.Contains("pizza") || nombreLower.Contains("guerrin") || nombreLower.Contains("banchero"))
+        else if (typeSet.Contains("pizza_restaurant") || nombreLower.Contains("pizza") || nombreLower.Contains("pizzer") || nombreLower.Contains("guerrin") || nombreLower.Contains("banchero") || nombreLower.Contains("cuartito"))
             key = "pizza";
+        else if (typeSet.Contains("steak_house") || nombreLower.Contains("parrilla") || nombreLower.Contains("asado") || nombreLower.Contains("carnes") || nombreLower.Contains("cabrera") || nombreLower.Contains("don julio"))
+            key = "parrilla";
+        else if (typeSet.Contains("italian_restaurant") || nombreLower.Contains("pasta") || nombreLower.Contains("trattoria"))
+            key = "pastas";
+        else if (typeSet.Contains("hamburger_restaurant") || nombreLower.Contains("burger") || nombreLower.Contains("hamburgues"))
+            key = "hamburguesa";
+        else if (typeSet.Contains("sushi_restaurant") || typeSet.Contains("japanese_restaurant") || nombreLower.Contains("sushi") || nombreLower.Contains("ramen"))
+            key = "sushi";
+        else if (typeSet.Contains("bakery") || nombreLower.Contains("panader") || nombreLower.Contains("pasteler") || nombreLower.Contains("boulangerie") || nombreLower.Contains("patisserie"))
+            key = "panaderia";
 
         if (!FotosFallbackPorCategoria.TryGetValue(key, out var pool) || pool.Length == 0)
         {
@@ -393,6 +483,13 @@ public class GooglePlacesService : IGooglePlacesService
         public int? UserRatingCount { get; set; }
         public string? PriceLevel { get; set; }
         public List<string>? Types { get; set; }
+        public string? PrimaryType { get; set; }
+        public GoogleDisplayName? PrimaryTypeDisplayName { get; set; }
+        public GoogleDisplayName? EditorialSummary { get; set; }
+        public GoogleAccessibilityOptions? AccessibilityOptions { get; set; }
+        public bool? OutdoorSeating { get; set; }
+        public bool? GoodForChildren { get; set; }
+        public bool? MenuForChildren { get; set; }
         public List<GooglePhotoItem>? Photos { get; set; }
     }
 
@@ -405,6 +502,11 @@ public class GooglePlacesService : IGooglePlacesService
     {
         public decimal Latitude { get; set; }
         public decimal Longitude { get; set; }
+    }
+
+    private class GoogleAccessibilityOptions
+    {
+        public bool? WheelchairAccessibleEntrance { get; set; }
     }
 
     private class GooglePhotoItem

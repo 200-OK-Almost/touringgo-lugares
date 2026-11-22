@@ -37,16 +37,21 @@ public static class DependencyInjection
         services.AddHttpClient<IEmbeddingClient, EmbeddingClient>(
             (serviceProvider, client) =>
             {
-                var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+                var config = serviceProvider.GetRequiredService<IConfiguration>();
 
-                var baseUrl = configuration["Embeddings:BaseUrl"]
+                var baseUrl = config["Embeddings:BaseUrl"]
                     ?? throw new InvalidOperationException(
                         "No se configuró Embeddings:BaseUrl.");
 
-                client.BaseAddress = new Uri(baseUrl);
+                var normalizedBaseUrl = baseUrl.TrimEnd('/') + "/";
+                client.BaseAddress = new Uri(normalizedBaseUrl);
+                client.Timeout = TimeSpan.FromSeconds(120);
             });
-        // seeder de embedding
+
+        // Seeder y worker automático en segundo plano para garantizar embeddings en cada lugar
         services.AddScoped<LugarEmbeddingSeeder>();
+        services.AddHostedService<LugarEmbeddingBackgroundService>();
+
         return services;
     }
 }

@@ -19,6 +19,7 @@ public class GooglePlacesService : IGooglePlacesService
     private readonly IConfiguration _configuration;
     private readonly ILogger<GooglePlacesService> _logger;
     private readonly ILugarEmbeddingTextBuilder _embeddingTextBuilder;
+    private readonly ILugarEmbeddingHashBuilder _embeddingHashBuilder;
     private readonly IEmbeddingClient _embeddingClient;
 
     public GooglePlacesService(
@@ -28,6 +29,7 @@ public class GooglePlacesService : IGooglePlacesService
         IConfiguration configuration,
         ILogger<GooglePlacesService> logger,
         ILugarEmbeddingTextBuilder embeddingTextBuilder,
+        ILugarEmbeddingHashBuilder embeddingHashBuilder,
         IEmbeddingClient embeddingClient)
     {
         _httpClient = httpClient;
@@ -36,6 +38,7 @@ public class GooglePlacesService : IGooglePlacesService
         _configuration = configuration;
         _logger = logger;
         _embeddingTextBuilder = embeddingTextBuilder;
+        _embeddingHashBuilder = embeddingHashBuilder;
         _embeddingClient = embeddingClient;
     }
 
@@ -256,6 +259,8 @@ public class GooglePlacesService : IGooglePlacesService
             for (int i = 0; i < lugares.Count; i++)
             {
                 lugares[i].Embedding = new Vector(vectores[i]);
+                lugares[i].EmbeddingSourceHash = _embeddingHashBuilder.Build(lugares[i]);
+                lugares[i].EmbeddingUpdatedAt = DateTime.UtcNow;
             }
         }
         catch (Exception ex)

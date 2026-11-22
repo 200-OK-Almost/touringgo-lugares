@@ -1,5 +1,6 @@
 using Lugares.API.Extensions;
 using Lugares.Application;
+using Lugares.Application.Configuration;
 using Lugares.Infrastructure;
 using Lugares.Infrastructure.Data;
 using Lugares.Infrastructure.Data.Seeding;
@@ -15,6 +16,8 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.Configure<EmbeddingBackfillOptions>(
+    builder.Configuration.GetSection(EmbeddingBackfillOptions.SectionName));
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

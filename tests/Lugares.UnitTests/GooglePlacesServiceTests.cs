@@ -96,10 +96,14 @@ public class GooglePlacesServiceTests
         string respuestaGoogle,
         Mock<ILugarRepository> repoMock,
         Mock<IEmbeddingClient> embeddingClientMock,
-        Mock<ILugarEmbeddingTextBuilder>? textBuilderMock = null)
+        Mock<ILugarEmbeddingTextBuilder>? textBuilderMock = null,
+        Mock<ILugarEmbeddingHashBuilder>? hashBuilderMock = null)
     {
         textBuilderMock ??= new Mock<ILugarEmbeddingTextBuilder>();
         textBuilderMock.Setup(t => t.Build(It.IsAny<Lugar>())).Returns("texto de embedding");
+
+        hashBuilderMock ??= new Mock<ILugarEmbeddingHashBuilder>();
+        hashBuilderMock.Setup(h => h.Build(It.IsAny<Lugar>())).Returns("hash-test");
 
         var httpClient = new HttpClient(new FakeHttpMessageHandler(respuestaGoogle));
 
@@ -117,6 +121,7 @@ public class GooglePlacesServiceTests
             configMock.Object,
             loggerMock.Object,
             textBuilderMock.Object,
+            hashBuilderMock.Object,
             embeddingClientMock.Object);
     }
 
@@ -158,6 +163,8 @@ public class GooglePlacesServiceTests
         Assert.Equal(2, resultado.Count);
         Assert.Equal(2, lugaresAgregados.Count);
         Assert.All(lugaresAgregados, l => Assert.NotNull(l.Embedding));
+        Assert.All(lugaresAgregados, l => Assert.Equal("hash-test", l.EmbeddingSourceHash));
+        Assert.All(lugaresAgregados, l => Assert.NotNull(l.EmbeddingUpdatedAt));
 
         Assert.Single(textosRecibidos);
         Assert.Equal(2, textosRecibidos[0].Count);
@@ -203,6 +210,8 @@ public class GooglePlacesServiceTests
         Assert.Single(resultado);
         Assert.NotNull(actualizado);
         Assert.NotNull(actualizado.Embedding);
+        Assert.Equal("hash-test", actualizado.EmbeddingSourceHash);
+        Assert.NotNull(actualizado.EmbeddingUpdatedAt);
         repoMock.Verify(r => r.AgregarAsync(It.IsAny<Lugar>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -230,5 +239,7 @@ public class GooglePlacesServiceTests
         Assert.Single(resultado);
         Assert.Single(lugaresAgregados);
         Assert.Null(lugaresAgregados[0].Embedding);
+        Assert.Null(lugaresAgregados[0].EmbeddingSourceHash);
+        Assert.Null(lugaresAgregados[0].EmbeddingUpdatedAt);
     }
 }

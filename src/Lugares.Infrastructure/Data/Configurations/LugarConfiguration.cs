@@ -160,6 +160,15 @@ public class LugarConfiguration : IEntityTypeConfiguration<Lugar>
         builder.Property(x => x.Embedding)
             .HasColumnType("vector(1024)"); // las dimensiones dependen del modelo
 
+        builder.Property(l => l.EmbeddingSourceHash)
+            .HasColumnName("embedding_source_hash")
+            .HasMaxLength(64)
+            .IsRequired(false);
+
+        builder.Property(l => l.EmbeddingUpdatedAt)
+            .HasColumnName("embedding_updated_at")
+            .IsRequired(false);
+
         // indice de distancia del coseno
         builder.HasIndex(x => x.Embedding) // la forma de declarar indice podría variar según el modelo
             .HasMethod("hnsw")

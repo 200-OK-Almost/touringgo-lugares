@@ -42,6 +42,8 @@ public class Lugar
 
     // pgvector
     public Pgvector.Vector? Embedding { get; set; }
+    public string? EmbeddingSourceHash { get; set; }
+    public DateTime? EmbeddingUpdatedAt { get; set; }
 
     // Navegación
     public ICollection<LugarCategoria> Categorias { get; set; } = new List<LugarCategoria>();

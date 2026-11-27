@@ -15,6 +15,12 @@ public class LugarFiltroDto
     public RestriccionDietaria? RestriccionDietaria { get; set; }
     public short? NivelPrecio { get; set; }
     public string? Busqueda { get; set; }
+    public string? Subzona { get; set; }
+
+    // Ranking / orden: nombre (default), puntuacion, resenas
+    public string? Orden { get; set; }
+    public int? ResenasMinimas { get; set; }
+    public decimal? PuntuacionMinima { get; set; }
 
     // Parámetros opcionales para ordenar por cercanía
     public decimal? LatitudReferencia { get; set; }

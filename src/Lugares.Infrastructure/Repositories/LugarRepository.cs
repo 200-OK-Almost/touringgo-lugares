@@ -96,6 +96,31 @@ public class LugarRepository : ILugarRepository
                                      (l.Subzona != null && l.Subzona.ToLower().Contains(busqueda)));
         }
 
+        if (!string.IsNullOrWhiteSpace(filtro.Subzona))
+        {
+            var subzona = filtro.Subzona.Trim().ToLower();
+            query = query.Where(l => l.Subzona != null && l.Subzona.ToLower().Contains(subzona));
+        }
+
+        if (filtro.ResenasMinimas is > 0)
+        {
+            query = query.Where(l => l.CantidadResenas >= filtro.ResenasMinimas.Value);
+        }
+
+        if (filtro.PuntuacionMinima.HasValue)
+        {
+            query = query.Where(l => l.Puntuacion >= filtro.PuntuacionMinima.Value);
+        }
+
+        var orden = filtro.Orden?.Trim().ToLowerInvariant();
+
+        // Al ordenar por puntuación no tiene sentido incluir lugares sin rating:
+        // en PostgreSQL un ORDER BY ... DESC coloca los NULL primero.
+        if (orden == "puntuacion")
+        {
+            query = query.Where(l => l.Puntuacion != null);
+        }
+
         var total = await query.CountAsync(cancellationToken);
 
         var pagina = filtro.Pagina < 1 ? 1 : filtro.Pagina;
@@ -106,10 +131,20 @@ public class LugarRepository : ILugarRepository
         // por cercanía de forma correcta antes de paginar.
         var usaCercania = filtro.LatitudReferencia.HasValue && filtro.LongitudReferencia.HasValue;
 
+        var ordenada = orden switch
+        {
+            "puntuacion" => query
+                .OrderByDescending(l => l.Puntuacion)
+                .ThenByDescending(l => l.CantidadResenas),
+            "resenas" => query
+                .OrderByDescending(l => l.CantidadResenas)
+                .ThenByDescending(l => l.Puntuacion),
+            _ => query.OrderBy(l => l.Nombre)
+        };
+
         var items = usaCercania
-            ? await query.OrderBy(l => l.Nombre).ToListAsync(cancellationToken)
-            : await query
-                .OrderBy(l => l.Nombre)
+            ? await ordenada.ToListAsync(cancellationToken)
+            : await ordenada
                 .Skip((pagina - 1) * tamano)
                 .Take(tamano)
                 .ToListAsync(cancellationToken);
